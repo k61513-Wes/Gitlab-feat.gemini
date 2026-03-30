@@ -1,7 +1,10 @@
 """
 app.py — Flask 後端（Selenium 爬蟲 + Gemini CLI subprocess）
 新增：批次排程、自動存檔、統一輸出結構
+版本：v1.0.0
 """
+
+APP_VERSION = "v1.0.0"
 
 import re
 import time
