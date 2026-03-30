@@ -1,0 +1,35 @@
+# #259 Permissions Management
+
+## 基本資訊
+- **狀態**：opened
+- **建立者**：Wes Chen（2025-05-08 19:44）
+- **標籤**：Confirmed, Enhancement, Epics: Permissions, PES, Priority::Low
+- **Milestone**：AISVision-v2.2.0（截止 2026-10-09）
+- **最後更新**：2026-01-29 17:06
+
+## 功能描述
+<!--A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]-->
+
+## 建議方案
+<!--A clear and concise description of what you want to happen.-->
+
+<!--Prioritize solutions from 1 to N. 
+     1. First priority solution 
+     2. Second priority solution-->
+
+1.
+
+## 補充內容
+<!--Add any other context or additional information about the problem here.-->
+
+*
+
+## 留言（共 2 則）
+
+### 留言 1｜Cindy Chen（2025-06-24 09:58）
+第四點需要被確認是project的權限還是workspace的權限
+
+Project 權限預設只有Project創建者可以進行編輯，其餘使用者僅能檢視(保留未來共編的彈性)
+
+### 留言 2｜Cindy Chen（2025-07-04 20:10）
+額外開一條issue for 第四點

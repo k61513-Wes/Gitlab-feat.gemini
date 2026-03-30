@@ -1,0 +1,40 @@
+# Image Editing-Crop
+
+## 功能描述
+<!--A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]-->
+
+## 建議方案
+<!--A clear and concise description of what you want to happen.-->
+
+<!--Prioritize solutions from 1 to N. 
+     1. First priority solution 
+     2. Second priority solution-->
+
+## 補充內容
+建議將`單張裁切`功能從`訓練前處理`（`Pre-processing`）中獨立出來，
+
+定位為資料準備工具，而非直接影響模型訓練 pipeline，
+
+裁切過後的圖片儲存副本，該Task直接將圖片更換成新的副本，過去的Task不影響，未來的Task由綁定資料集時用戶自行選擇，
+
+*
+
+## 留言（共 2 則）
+
+### 留言 1｜Andrea Wang（2026-03-18 17:22）
+@cindy_chen 
+根據上面規格敘述，只要原圖片經過裁切，在綁定資料集時就可以選擇同張圖片過往的所有版本嗎?
+這邊是不是需要定義原圖編輯和儲存的時機呢?
+如果是:      
+1. 只存有經過訓練(且完成訓練)的裁切圖片
+->延伸問題，需要有個view可以一次搜尋到同張圖片編輯的所有版本嗎?
+2. 只要有編輯過的圖片都幫忙保留未來可取用的版本 ->延伸問題，這些版本可以刪除嗎? 誰有權限刪除?
+cc @products/aisvisionplatform/teams/spm @products/aisvisionplatform/teams/tpm
+
+### 留言 2｜Cindy Chen（2026-03-18 17:29）
+是套用裁切參數後才會需要 真的裁切，預覽裁切範圍的時候 可以設計儲存以及套用
+
+1. 這個可以看UX設計流程，但上面usesr story的需求說到非前處理頁面，那就代表圖片進入訓練前就會需要裁切完畢後送進訓練
+2. 可參考 http://172.22.137.46:8000/products/aisvisionplatform/gitlab-profile/-/issues/681 說明的方式
+
+cc. @products/aisvisionplatform/teams/backend @products/aisvisionplatform/teams/frontend @products/aisvisionplatform/teams/design @products/aisvisionplatform/teams/spm @products/aisvisionplatform/teams/swpm @suyanru @Sean4_Chen

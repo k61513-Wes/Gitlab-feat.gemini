@@ -1,0 +1,22 @@
+## 問題說明
+此 Issue 旨在實作 Metric 數據的報告匯出功能。根據 2026/3/2 的 BD 會議需求，使用者希望在平台中加入匯出按鈕，將相關指標數據匯出為報告供後續使用。
+
+## 根本原因
+尚未確認（本案為新功能需求開發，非錯誤修復）。
+
+## 解決方式
+匯出內容與樣式將完全參照 R6 版本，並以 PDF 為主要匯出格式。平台介面上的匯出按鈕位置與操作流程，將由 UI/UX 設計團隊協助規劃與設計。
+
+## 待辦事項
+*   參考 R6 樣式與內容進行功能開發。
+*   由 UI/UX 設計師規劃平台中匯出按鈕的放置位置與互動流程。
+*   實作 PDF 格式的報告產生與匯出邏輯。
+
+## 討論共識
+*   匯出格式確定以 PDF 為主。
+*   功能規格與內容完全參照 R6。
+*   確認需要 UI/UX 工項介入，協助處理平台端的按鈕位置與流程設計。
+
+## 補充內容
+*   [UI Metric 對照表](https://asus.sharepoint.com/:x:/r/sites/AISVisionPlatform/Shared%20Documents/%E4%B8%80%E8%88%AC/05-Web%20API/Metrics/UI%20Metric%20%E5%B0%8D%E7%85%A7%E8%A1%A8.xlsx?d=wa1d0fcfbc76f4d5c9e4f289d138ceb12&csf=1&web=1&e=4fsSmT)
+*   Cindy Chen 已依據討論結果於 Issue 加上相關 Label。

@@ -1,0 +1,37 @@
+# Metric - 匯出報告
+
+## 功能描述
+<!--A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]-->
+
+## 建議方案
+<!--A clear and concise description of what you want to happen.-->
+
+<!--Prioritize solutions from 1 to N. 
+     1. First priority solution 
+     2. Second priority solution-->
+
+1.
+
+## 補充內容
+<!--Add any other context or additional information about the problem here.-->
+
+* [UI Metric 對照表](https://asus.sharepoint.com/:x:/r/sites/AISVisionPlatform/Shared%20Documents/%E4%B8%80%E8%88%AC/05-Web%20API/Metrics/UI%20Metric%20%E5%B0%8D%E7%85%A7%E8%A1%A8.xlsx?d=wa1d0fcfbc76f4d5c9e4f289d138ceb12&csf=1&web=1&e=4fsSmT)
+
+## 留言（共 4 則）
+
+### 留言 1｜YanRu Su（2025-06-11 15:55）
+@products/aisvisionplatform/teams/design 優先參考 R6 樣式
+
+### 留言 2｜Ivy Yang（2026-03-02 11:55）
+2026/3/2 BD 會議提出此需求
+
+內容完全參照R6,匯出格式以PDF為主
+
+### 留言 3｜Andrea Wang（2026-03-02 14:35）
+想請問這邊規格是否需要加上UI/UX的工項?
+cc @products/aisvisionplatform/teams/swpm  @Wayne @willy_yeh
+
+### 留言 4｜Cindy Chen（2026-03-05 16:37）
+@Andrea  與Willy確認，export的內容是參照R6，但平台畫面中匯出的button位置流程會需要設計協助，因此有將label加上，謝謝
+
+cc. @products/aisvisionplatform/teams/spm @products/aisvisionplatform/teams/swpm @suyanru @Sean4_Chen @products/aisvisionplatform/teams/frontend

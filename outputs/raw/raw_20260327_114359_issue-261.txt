@@ -1,0 +1,28 @@
+# #261 Project Page card/ list view
+
+## 基本資訊
+- **狀態**：opened
+- **建立者**：Wes Chen（2025-05-08 19:55）
+- **標籤**：Confirmed, Enhancement, Epics: Project, PES, Priority::Low, Team::Frontend, Team::UI/UX Design
+- **Milestone**：AISVision-v2.2.0（截止 2026-10-09）
+- **最後更新**：2026-02-23 15:57
+
+## 功能描述
+<!-- A clear and concise description of what the problem is. Ex. I'm always frustrated when [...] -->
+
+## 建議方案
+<!-- A clear and concise description of what you want to happen. -->
+<!-- Prioritize solutions from 1 to N. 
+     1. First priority solution 
+     2. Second priority solution
+-->
+
+建議和UI改版同時設計
+
+## 補充內容
+<!-- Add any other context or additional information about the problem here.-->
+
+*
+
+## 留言
+（無留言）

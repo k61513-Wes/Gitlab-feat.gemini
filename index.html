@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitLab Issue 整理工具</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0e0e10; --bg2: #16161a; --bg3: #1e1e24;
+  --border: #2a2a35; --border-hi: #3d3d50;
+  --accent: #5b6af0; --accent-dim: #3a4180; --accent-glow: rgba(91,106,240,0.15);
+  --green: #3dd68c; --amber: #f0a500; --red: #e05c5c; --blue: #4a9eff;
+  --text: #d4d4e0; --text-dim: #6e6e88; --text-bright: #f0f0fa;
+  --mono: 'IBM Plex Mono', monospace; --sans: 'Noto Sans TC', sans-serif;
+  --radius: 8px; --tr: 0.18s cubic-bezier(0.4,0,0.2,1);
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+/* ── Header ── */
+header {
+  border-bottom: 1px solid var(--border); padding: 16px 36px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg); position: sticky; top: 0; z-index: 100;
+}
+.logo { width: 30px; height: 30px; background: var(--accent); border-radius: 6px; display: grid; place-items: center; font-family: var(--mono); font-size: 12px; color: #fff; font-weight: 500; flex-shrink: 0; }
+header h1 { font-size: 14px; font-weight: 500; color: var(--text-bright); }
+header .sub { font-size: 11px; color: var(--text-dim); margin-left: auto; font-family: var(--mono); }
+
+/* ── Layout ── */
+.layout { display: grid; grid-template-columns: 1fr 340px; gap: 0; min-height: calc(100vh - 57px); }
+.main-col { padding: 28px 28px 80px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); }
+.side-col { padding: 20px 20px 40px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Step card ── */
+.step { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg2); overflow: hidden; transition: border-color var(--tr); }
+.step.active { border-color: var(--accent-dim); }
+.step.done   { border-color: var(--border-hi); }
+.step-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; }
+.step-num { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border-hi); display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--text-dim); flex-shrink: 0; transition: all var(--tr); }
+.step.active .step-num { border-color: var(--accent); background: var(--accent); color: #fff; }
+.step.done .step-num { border-color: var(--green); background: var(--green); color: #000; font-size: 13px; }
+.step.done .step-num-inner { display: none; }
+.step.done .step-num::after { content: "✓"; }
+.step-title { font-size: 13px; font-weight: 500; color: var(--text-bright); }
+.step-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+.step-badge { margin-left: auto; font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--bg3); color: var(--text-dim); border: 1px solid var(--border); white-space: nowrap; }
+.step.done .step-badge { color: var(--green); border-color: rgba(61,214,140,0.3); }
+.step-body { padding: 0 20px 20px; display: none; flex-direction: column; gap: 14px; }
+.step.active .step-body, .step.done .step-body { display: flex; }
+.step-divider { height: 1px; background: var(--border); margin: 0 20px; }
+.connector { display: flex; justify-content: center; padding: 5px 0; color: var(--border-hi); font-size: 16px; user-select: none; }
+
+/* ── Form ── */
+.field { display: flex; flex-direction: column; gap: 5px; }
+label { font-size: 11px; font-family: var(--mono); color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; }
+input[type=text], input[type=password], input[type=url], textarea {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-family: var(--mono); font-size: 12.5px; padding: 9px 12px;
+  transition: border-color var(--tr); width: 100%; resize: vertical;
+}
+input:focus, textarea:focus { outline: none; border-color: var(--accent); background: #1a1a22; }
+input::placeholder, textarea::placeholder { color: var(--text-dim); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ── Buttons ── */
+.btn-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button { font-family: var(--sans); font-size: 13px; border: none; border-radius: var(--radius); cursor: pointer; padding: 8px 18px; transition: all var(--tr); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #6b7cf5; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--border-hi); color: var(--text); }
+.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-excel { background: #1a7a3c; color: #fff; }
+.btn-excel:hover { background: #23a052; transform: translateY(-1px); }
+.btn-excel:active { transform: translateY(0); }
+.btn-excel:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-sm { padding: 5px 10px; font-size: 11px; }
+
+/* ── Status ── */
+.status { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11.5px; padding: 8px 12px; border-radius: var(--radius); border: 1px solid transparent; }
+.status.info    { background: rgba(91,106,240,0.1); border-color: var(--accent-dim); color: #8896f8; }
+.status.success { background: rgba(61,214,140,0.08); border-color: rgba(61,214,140,0.3); color: var(--green); }
+.status.error   { background: rgba(224,92,92,0.1); border-color: rgba(224,92,92,0.3); color: var(--red); }
+.status.hidden  { display: none; }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; animation: pulse 1.2s ease-in-out infinite; }
+.info .dot { background: var(--accent); }
+.success .dot { background: var(--green); animation: none; }
+.error .dot { background: var(--red); animation: none; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+/* ── Output area ── */
+.out-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.out-label { font-size: 11px; font-family: var(--mono); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; }
+.out-area { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--mono); font-size: 12px; line-height: 1.7; color: var(--text); padding: 12px 14px; min-height: 120px; white-space: pre-wrap; word-break: break-word; resize: vertical; width: 100%; }
+.final-out { background: #0d1117; border: 1px solid rgba(91,106,240,0.35); border-radius: var(--radius); font-family: var(--mono); font-size: 12px; line-height: 1.75; color: #c9d1d9; padding: 16px; white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow-y: auto; min-height: 60px; }
+
+/* ── Queue list ── */
+.queue-list { display: flex; flex-direction: column; gap: 6px; }
+.queue-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; transition: border-color var(--tr); }
+.queue-item.running { border-color: var(--accent-dim); background: var(--accent-glow); }
+.queue-item.done    { border-color: rgba(61,214,140,0.3); }
+.queue-item.error   { border-color: rgba(224,92,92,0.3); }
+.queue-item.waiting { opacity: 0.6; }
+.qi-url  { font-family: var(--mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qi-status { font-size: 11px; display: flex; align-items: center; gap: 5px; }
+.qi-status .icon { font-size: 13px; line-height: 1; }
+.qi-files { font-family: var(--mono); font-size: 10px; color: var(--text-dim); display: flex; flex-direction: column; gap: 2px; }
+.qi-files span { cursor: pointer; color: var(--blue); }
+.qi-files span:hover { text-decoration: underline; }
+
+/* ── History panel ── */
+.panel-title { font-size: 11px; font-family: var(--mono); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.history-list { display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 260px); overflow-y: auto; }
+.hist-item { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all var(--tr); }
+.hist-item:hover { border-color: var(--accent-dim); background: var(--accent-glow); }
+.hist-name { font-family: var(--mono); font-size: 11px; color: var(--text); }
+.hist-meta { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.hist-kind { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-family: var(--mono); }
+.hist-kind.raw    { background: rgba(240,165,0,0.12); color: var(--amber); }
+.hist-kind.result { background: rgba(61,214,140,0.1); color: var(--green); }
+
+/* ── File viewer modal ── */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: none; align-items: center; justify-content: center; padding: 40px; }
+.modal-backdrop.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border-hi); border-radius: 10px; width: 100%; max-width: 760px; max-height: 80vh; display: flex; flex-direction: column; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.modal-title { font-family: var(--mono); font-size: 12px; color: var(--text-bright); }
+.modal-close { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+.modal-content { font-family: var(--mono); font-size: 12px; line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+
+/* ── Hint ── */
+.hint { font-size: 11px; color: var(--text-dim); background: var(--bg3); border-left: 3px solid var(--accent-dim); padding: 7px 10px; border-radius: 0 4px 4px 0; font-family: var(--mono); line-height: 1.5; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">GL</div>
+  <h1>GitLab Issue 整理工具</h1>
+  <span class="sub">batch · scrape → process → export</span>
+</header>
+
+<div class="layout">
+<!-- ══ 主欄 ══ -->
+<div class="main-col">
+
+  <!-- Step 0：連線設定 -->
+  <div class="step active" id="step-config">
+    <div class="step-header">
+      <div class="step-num"><span class="step-num-inner">0</span></div>
+      <div><div class="step-title">連線設定</div><div class="step-sub">GitLab 帳密（僅存於本頁記憶體）</div></div>
+      <div class="step-badge" id="badge-config">未設定</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step-body" style="display:flex">
+      <div class="field-row">
+        <div class="field"><label>Project ID（必填）</label><input type="text" id="cfg-project-id" value="594" placeholder="594" style="font-family:var(--mono)" autocomplete="off"></div>
+        <div class="field"><label>API Token（必填）</label><input type="password" id="cfg-token" value="iwvKCYFpdTPTcq-nqZ3L" placeholder="glpat-xxxx" style="font-family:var(--mono)" autocomplete="off"></div>
+      </div>
+      <div class="hint" style="border-color:rgba(61,214,140,0.4)">✓ 使用 GitLab API 模式：速度快 10 倍，不需帳號密碼。若 API 失敗才需填以下帳密作為備用。</div>
+      <div class="field-row">
+        <div class="field"><label>GitLab 帳號（備用）</label><input type="text" id="cfg-user" placeholder="your.username" autocomplete="off"></div>
+        <div class="field"><label>GitLab 密碼（備用）</label><input type="password" id="cfg-pass" placeholder="••••••••" autocomplete="off"></div>
+      </div>
+      <div class="field" style="max-width:220px">
+        <label>Gemini Timeout（秒）</label>
+        <input type="text" id="cfg-timeout" value="300" placeholder="300" style="font-family:var(--mono)" autocomplete="off">
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="saveConfig()">儲存設定</button>
+        <button class="btn-ghost" onclick="checkHealth()" id="btn-health">檢查 Gemini CLI</button>
+        <div class="status hidden" id="st-config"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <!-- Step 1：Issue URL 輸入（支援篩選 URL 或單筆 Issue URL） -->
+  <div class="step" id="step1">
+    <div class="step-header">
+      <div class="step-num"><span class="step-num-inner">1</span></div>
+      <div><div class="step-title">輸入 Issue URL</div><div class="step-sub">貼入 GitLab 篩選頁面 URL 自動展開，或直接貼多筆 Issue URL</div></div>
+      <div class="step-badge" id="badge-step1">待執行</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step-body">
+      <div class="field">
+        <label>URL 輸入框</label>
+        <textarea id="url-list" rows="5" placeholder="● 篩選頁面 URL（單行，自動展開為 Issue 清單）&#10;  例：http://gitlab.company.com/.../-/issues/?milestone_title=v2.0&amp;or[label_name][]=Priority::High&#10;&#10;● 或直接貼多個 Issue URL（一行一個）&#10;  例：http://gitlab.company.com/.../issues/101"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn-ghost" id="btn-load" onclick="smartLoadList()">🔍 載入清單</button>
+        <div class="status hidden" id="st-load"></div>
+      </div>
+      <!-- 篩選 URL 解析後的 Issue 預覽 -->
+      <div id="load-preview" style="display:none;flex-direction:column;gap:8px">
+        <div class="out-header">
+          <span class="out-label" id="load-count"></span>
+          <button class="btn-ghost btn-sm" onclick="id('load-preview').style.display='none'">收起</button>
+        </div>
+        <div id="load-issue-list" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+      <div class="field">
+        <label>System Prompt（留空使用預設結構）</label>
+        <textarea id="process-prompt" rows="3" placeholder="留空即使用預設的六區塊結構（問題說明／根本原因／解決方式／待辦事項／討論共識／補充內容）"></textarea>
+      </div>
+      <div class="field">
+        <label>匯出格式指令（留空使用預設 JSON）</label>
+        <textarea id="export-prompt" rows="3" placeholder='留空使用預設 JSON 格式，或自訂：例如「輸出成週報段落」「轉成 Jira Wiki 語法」'></textarea>
+      </div>
+      <div class="hint">💡 程式會依序處理每個 URL：爬取 → LLM 整理 → 格式匯出，每筆結果自動存檔。</div>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-start" onclick="startBatch()" disabled>開始批次處理</button>
+        <button class="btn-ghost" id="btn-stop" onclick="stopBatch()" disabled>停止</button>
+        <button class="btn-excel" id="btn-excel" onclick="exportExcel()" disabled title="不經 LLM，直接將所有 Issue 的 metadata 匯出成 Excel">📊 匯出 Excel</button>
+        <div class="status hidden" id="st-batch"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <!-- Step 2：批次進度 -->
+  <div class="step" id="step2">
+    <div class="step-header">
+      <div class="step-num"><span class="step-num-inner">2</span></div>
+      <div><div class="step-title">處理進度</div><div class="step-sub">每個 Issue 的即時狀態</div></div>
+      <div class="step-badge" id="badge-step2">待執行</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step-body">
+      <div class="queue-list" id="queue-list">
+        <div style="color:var(--text-dim);font-size:12px;padding:8px 0">尚未開始，請先填入 URL 並點擊「開始批次處理」</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <!-- Step 3：檢視結果 -->
+  <div class="step" id="step3">
+    <div class="step-header">
+      <div class="step-num"><span class="step-num-inner">3</span></div>
+      <div><div class="step-title">查看最新結果</div><div class="step-sub">最後一筆處理完成的 Issue</div></div>
+      <div class="step-badge" id="badge-step3">待執行</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step-body">
+      <div id="last-result-wrap" style="display:none;flex-direction:column;gap:10px">
+        <div class="out-header">
+          <span class="out-label">LLM 整理結果</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn-ghost btn-sm" onclick="copyEl('last-result')">複製</button>
+            <button class="btn-ghost btn-sm" onclick="downloadText('last-result','result.md')">下載</button>
+          </div>
+        </div>
+        <div id="last-result" class="final-out"></div>
+        <div class="out-header" style="margin-top:6px">
+          <span class="out-label">格式匯出</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn-ghost btn-sm" onclick="copyEl('last-export')">複製</button>
+            <button class="btn-ghost btn-sm" onclick="downloadText('last-export','export.txt')">下載</button>
+          </div>
+        </div>
+        <div id="last-export" class="final-out"></div>
+      </div>
+      <div id="last-result-empty" style="color:var(--text-dim);font-size:12px;padding:8px 0">批次完成後，最後一筆結果會顯示在這裡。</div>
+    </div>
+  </div>
+
+</div><!-- /main-col -->
+
+<!-- ══ 側欄：歷史存檔 ══ -->
+<div class="side-col">
+  <div>
+    <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>歷史存檔</span>
+      <button class="btn-ghost btn-sm" onclick="loadHistory()">重整</button>
+    </div>
+  </div>
+  <div class="history-list" id="history-list">
+    <div style="color:var(--text-dim);font-size:11px;padding:8px 0">載入中...</div>
+  </div>
+</div>
+
+</div><!-- /layout -->
+
+<!-- ── 檔案預覽 Modal ── -->
+<div class="modal-backdrop" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">檔案內容</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-ghost btn-sm" onclick="copyModalContent()">複製</button>
+        <button class="modal-close" onclick="closeModalDirect()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-content" id="modal-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+const S = { username: "", password: "", projectId: "", token: "", timeout: 300, running: false, stopFlag: false };
+let _abortController = null;  // 用於立即中止當前請求
+
+// ── Config ─────────────────────────────────────────────────────────────
+function saveConfig() {
+  const pid     = id("cfg-project-id").value.trim();
+  const tok     = id("cfg-token").value.trim();
+  const u       = id("cfg-user").value.trim();
+  const p       = id("cfg-pass").value.trim();
+  const timeout = parseInt(id("cfg-timeout").value.trim()) || 300;
+
+  const hasApi = pid && tok;
+  const hasSel = u && p;
+
+  if (!hasApi && !hasSel) {
+    showSt("st-config","error","請填寫 Project ID + API Token（或備用帳號密碼）");
+    return;
+  }
+  S.projectId = pid; S.token = tok;
+  S.username  = u;   S.password = p;
+  S.timeout   = timeout;
+
+  const modeLabel = hasApi ? `API 模式（Project ${pid}）` : "Selenium 模式（備用）";
+  showSt("st-config","success",`✓ 設定已儲存（${modeLabel}，Timeout ${timeout}s）`);
+  id("badge-config").textContent = hasApi ? "API 模式" : "Selenium";
+  setDone("step-config"); setActive("step1");
+  id("btn-start").disabled = false;
+  id("btn-excel").disabled = false;
+}
+
+async function checkHealth() {
+  const btn = id("btn-health");
+  btn.disabled = true; btn.textContent = "檢查中...";
+  showSt("st-config","info","確認 Gemini CLI...");
+  try {
+    const d = await api("/api/health");
+    if (d.cli_found) {
+      let msg = `✓ Gemini CLI 就緒`;
+      msg += `\n路徑: ${d.gemini_cli}`;
+      msg += `\nTimeout: ${d.timeout}s`;
+      if (d.model_name && d.model_name !== "未確定") {
+        msg += `\n模型: ${d.model_name} (${d.model_info})`;
+      } else if (d.model_info) {
+        msg += `\n${d.model_info}`;
+      }
+      showSt("st-config","success", msg.split("\n").join(" | "));
+    }
+    else showSt("st-config","error",`找不到 Gemini CLI（${d.gemini_cli}），請先執行安裝指令`);
+  } catch(e) { showSt("st-config","error",`健康檢查失敗：${e.message}`); }
+  finally { btn.disabled = false; btn.textContent = "檢查 Gemini CLI"; }
+}
+
+// ── Smart URL input ────────────────────────────────────────────────────
+function isFilterUrl(text) {
+  // Single non-empty line that looks like a GitLab issues filter page URL
+  const lines = text.trim().split("\n").filter(l => l.trim());
+  if (lines.length !== 1) return false;
+  return /\/-\/issues\/?\?/.test(lines[0].trim());
+}
+
+async function smartLoadList() {
+  const raw = id("url-list").value.trim();
+  if (!raw) { showSt("st-load", "error", "請先貼入 URL"); return; }
+
+  if (isFilterUrl(raw)) {
+    // 篩選頁面 URL → 呼叫 API 解析
+    await resolveFilterUrl(raw.trim());
+  } else {
+    // 個別 Issue URL → 直接計算數量
+    const urls = raw.split("\n").map(u => u.trim()).filter(u => u.startsWith("http"));
+    if (!urls.length) {
+      showSt("st-load", "error", "未偵測到有效的 Issue URL（需以 http 開頭）");
+      return;
+    }
+    id("load-preview").style.display = "none";
+    showSt("st-load", "success", `✓ 偵測到 ${urls.length} 個 Issue URL，可直接開始處理`);
+  }
+}
+
+async function resolveFilterUrl(filterUrl) {
+  const projectId = parseInt(S.projectId) || parseInt(id("cfg-project-id").value.trim());
+  const token     = S.token || id("cfg-token").value.trim();
+
+  if (!filterUrl) { showSt("st-load", "error", "請先貼入篩選頁面 URL"); return; }
+  if (!projectId) { showSt("st-load", "error", "請先在「連線設定」填寫 Project ID 並儲存"); return; }
+
+  const btn = id("btn-load");
+  btn.disabled = true; btn.textContent = "取得中...";
+  showSt("st-load", "info", "正在呼叫 GitLab API...");
+  id("load-preview").style.display = "none";
+
+  const payload = { filter_url: filterUrl, project_id: projectId };
+  if (token) payload.private_token = token;
+
+  try {
+    const d = await api("/api/resolve_filter_url", payload);
+    if (d.error) throw new Error(d.error);
+
+    // 將解析後的 URL 填回輸入框
+    id("url-list").value = d.issues.map(i => i.web_url).join("\n");
+    id("load-count").textContent = `找到 ${d.count} 個 Issue（專案：${d.project}）`;
+
+    // 渲染預覽清單
+    const listEl = id("load-issue-list");
+    listEl.innerHTML = d.issues.map(iss => `
+      <div style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;gap:8px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim);flex-shrink:0">#${iss.iid}</span>
+        <span style="font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${iss.title}</span>
+        <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(61,214,140,0.1);color:var(--green);flex-shrink:0">${iss.state}</span>
+      </div>`).join("");
+
+    id("load-preview").style.display = "flex";
+    showSt("st-load", "success", `✓ 已解析 ${d.count} 個 Issue，URL 已填入清單，可直接開始處理`);
+  } catch(e) {
+    showSt("st-load", "error", e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "🔍 載入清單";
+  }
+}
+
+// ── Batch processing ───────────────────────────────────────────────────
+async function startBatch() {
+  const useApi = S.projectId && S.token;
+  if (!useApi && (!S.username || !S.password)) {
+    showSt("st-batch","error","請先儲存連線設定（Project ID + API Token）"); return;
+  }
+  const raw = id("url-list").value.trim();
+  const urls = raw.split("\n").map(u => u.trim()).filter(u => u.startsWith("http"));
+  if (!urls.length) { showSt("st-batch","error","請輸入至少一個有效的 URL"); return; }
+
+  S.running = true; S.stopFlag = false;
+  id("btn-start").disabled = true;
+  id("btn-stop").disabled = false;
+  setActive("step2");
+  id("badge-step2").textContent = `0 / ${urls.length}`;
+
+  // 初始化進度列表
+  id("queue-list").innerHTML = "";
+  urls.forEach((url, i) => renderQueueItem(i, url, "waiting", "⏳ 等待中"));
+
+  let doneCount = 0;
+  for (let i = 0; i < urls.length; i++) {
+    if (S.stopFlag) { showSt("st-batch","error","⏹ 已中止"); break; }
+
+    const url = urls[i];
+    _abortController = new AbortController();
+    const sig = _abortController.signal;
+
+    updateQueueItem(i, "running", useApi ? "⚡ API 取資料中..." : "🔄 Selenium 爬取中...", null);
+    showSt("st-batch","info",`處理第 ${i+1}/${urls.length} 筆：${shortUrl(url)}`);
+
+    try {
+      // Step A: 爬取（API 優先，備用 Selenium）
+      let scrapeRes;
+      if (useApi) {
+        scrapeRes = await api("/api/scrape_api", {
+          url,
+          project_id:    parseInt(S.projectId),
+          private_token: S.token,
+        }, sig);
+      } else {
+        scrapeRes = await api("/api/scrape", {
+          url, username: S.username, password: S.password,
+        }, sig);
+      }
+      if (scrapeRes.error) throw new Error(scrapeRes.error);
+
+      if (S.stopFlag) { updateQueueItem(i, "waiting", "⏹ 中止", null); break; }
+      updateQueueItem(i, "running", "🤖 LLM 整理中...", null);
+
+      // Step B: LLM 整理
+      _abortController = new AbortController();
+      const sig2 = _abortController.signal;
+      const processRes = await api("/api/process", {
+        raw_text:      scrapeRes.raw_text,
+        system_prompt: id("process-prompt").value.trim(),
+        url:           url,
+        timeout:       S.timeout || 300,
+      }, sig2);
+      if (processRes.error) throw new Error(processRes.error);
+
+      if (S.stopFlag) { updateQueueItem(i, "waiting", "⏹ 中止", null); break; }
+
+      // Step C: 格式匯出
+      _abortController = new AbortController();
+      const sig3 = _abortController.signal;
+      const exportRes = await api("/api/export", {
+        processed_text: processRes.result,
+        export_prompt:  id("export-prompt").value.trim(),
+      }, sig3);
+      if (exportRes.error) throw new Error(exportRes.error);
+
+      // 完成
+      doneCount++;
+      const files = [];
+      if (scrapeRes.saved_raw)      files.push({ label: "raw",    path: scrapeRes.saved_raw });
+      if (processRes.saved_result)  files.push({ label: "result", path: processRes.saved_result });
+      updateQueueItem(i, "done", `✓ 完成`, files);
+      id("badge-step2").textContent = `${doneCount} / ${urls.length}`;
+      showLastResult(processRes.result, exportRes.output);
+      loadHistory();
+
+    } catch(e) {
+      if (e.name === "AbortError" || S.stopFlag) {
+        updateQueueItem(i, "waiting", "⏹ 中止", null);
+        break;
+      }
+      updateQueueItem(i, "error", `✗ ${e.message}`, null);
+      showSt("st-batch","error",`第 ${i+1} 筆失敗：${e.message}`);
+    }
+  }
+
+  S.running = false; _abortController = null;
+  id("btn-start").disabled = false;
+  id("btn-stop").disabled = true;
+  id("btn-excel").disabled = false;
+
+  if (!S.stopFlag) {
+    showSt("st-batch","success",`全部完成，共 ${doneCount}/${urls.length} 筆成功`);
+    setDone("step2"); setActive("step3");
+    id("badge-step3").textContent = "完成";
+    setDone("step3");
+  } else {
+    showSt("st-batch","error","⏹ 已中止");
+  }
+  loadHistory();
+}
+
+function stopBatch() {
+  S.stopFlag = true;
+  if (_abortController) _abortController.abort();   // ← 立即中止當前請求
+  id("btn-stop").disabled = true;
+  showSt("st-batch","error","⏹ 正在中止...");
+}
+
+// ── Excel 匯出（不走 LLM，直接從 API 取 metadata → .xlsx）──────────────
+async function exportExcel() {
+  const urls = id("url-list").value.trim().split("\n").map(u => u.trim()).filter(Boolean);
+  if (!urls.length) { alert("請先填入 Issue URL"); return; }
+
+  const btn = id("btn-excel");
+  btn.disabled = true;
+  showSt("st-batch", "info", "⏳ 正在產生 Excel，請稍候...");
+
+  try {
+    const res = await api("/api/batch_export_excel", {
+      urls,
+      project_id: S.projectId ? parseInt(S.projectId) : null,
+      private_token: S.token || null,
+    });
+
+    if (res.error) throw new Error(res.error);
+
+    const errCount = (res.errors || []).length;
+    const msg = errCount
+      ? `✓ Excel 已產出（${res.count} 筆成功，${errCount} 筆失敗）`
+      : `✓ Excel 已產出，共 ${res.count} 筆`;
+    showSt("st-batch", "success", msg);
+
+    // 自動下載
+    const link = document.createElement("a");
+    link.href = `/api/outputs/${res.filename}`;
+    link.download = res.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    loadHistory();
+  } catch(e) {
+    showSt("st-batch", "error", `✗ Excel 匯出失敗：${e.message}`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Queue UI helpers ───────────────────────────────────────────────────
+function renderQueueItem(idx, url, state, statusText) {
+  const el = document.createElement("div");
+  el.className = `queue-item ${state}`;
+  el.id = `qi-${idx}`;
+  el.innerHTML = `
+    <div class="qi-url" title="${url}">${url}</div>
+    <div class="qi-status" id="qi-st-${idx}"><span class="icon"></span><span>${statusText}</span></div>
+    <div class="qi-files" id="qi-files-${idx}"></div>
+  `;
+  id("queue-list").appendChild(el);
+}
+
+function updateQueueItem(idx, state, statusText, files) {
+  const el = id(`qi-${idx}`);
+  if (!el) return;
+  el.className = `queue-item ${state}`;
+  const st = id(`qi-st-${idx}`);
+  if (st) st.innerHTML = `<span>${statusText}</span>`;
+
+  if (files && files.length) {
+    const fc = id(`qi-files-${idx}`);
+    if (fc) {
+      fc.innerHTML = files.map(f => {
+        const fname = f.path.replace(/\\/g, "/").split("/").pop();
+        return `<span onclick="viewFile('${fname}')" title="${f.path}">[${f.label}] ${fname}</span>`;
+      }).join("");
+    }
+  }
+}
+
+// ── Last result ────────────────────────────────────────────────────────
+function showLastResult(result, exportOutput) {
+  id("last-result").textContent = result;
+  id("last-export").textContent = exportOutput;
+  id("last-result-wrap").style.display = "flex";
+  id("last-result-empty").style.display = "none";
+}
+
+// ── History ────────────────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const d = await api("/api/outputs");
+    const list = id("history-list");
+    if (!d.files || !d.files.length) {
+      list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px 0">尚無存檔</div>';
+      return;
+    }
+    list.innerHTML = d.files.map(f => {
+      const kind = f.filename.startsWith("raw") ? "raw" : "result";
+      const label = kind === "raw" ? "爬取原始" : "LLM 整理";
+      return `
+        <div class="hist-item" onclick="viewFile('${f.filename}')">
+          <div class="hist-name">${f.filename}</div>
+          <div class="hist-meta" style="display:flex;align-items:center;gap:6px;margin-top:3px">
+            <span class="hist-kind ${kind}">${label}</span>
+            <span>${f.mtime}</span>
+            <span>${(f.size/1024).toFixed(1)} KB</span>
+          </div>
+        </div>`;
+    }).join("");
+  } catch(e) {
+    id("history-list").innerHTML = `<div style="color:var(--red);font-size:11px">${e.message}</div>`;
+  }
+}
+
+async function viewFile(filename) {
+  try {
+    const d = await api(`/api/outputs/${encodeURIComponent(filename)}`, null, "GET");
+    id("modal-title").textContent = filename;
+    id("modal-content").textContent = d.content;
+    id("modal").classList.add("open");
+  } catch(e) {
+    alert("無法讀取檔案：" + e.message);
+  }
+}
+
+function closeModal(e) { if (e.target === id("modal")) closeModalDirect(); }
+function closeModalDirect() { id("modal").classList.remove("open"); }
+function copyModalContent() {
+  navigator.clipboard.writeText(id("modal-content").textContent);
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────
+function id(x) { return document.getElementById(x); }
+
+async function api(path, body, signalOrMethod) {
+  // signalOrMethod 可以是 AbortSignal（新用法）或 "GET"/"POST" 字串（舊用法）
+  const isSignal = signalOrMethod instanceof AbortSignal;
+  const opts = {
+    method: (typeof signalOrMethod === "string" ? signalOrMethod : null)
+            || (body ? "POST" : "GET"),
+    headers: body ? { "Content-Type": "application/json" } : {},
+  };
+  if (body) opts.body = JSON.stringify(body);
+  if (isSignal) opts.signal = signalOrMethod;
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+function showSt(elId, type, msg) {
+  const el = id(elId);
+  el.className = `status ${type}`;
+  el.innerHTML = `<span class="dot"></span>${msg}`;
+}
+
+function setActive(stepId) {
+  const el = id(stepId);
+  el.classList.remove("done"); el.classList.add("active");
+  el.scrollIntoView({ behavior:"smooth", block:"nearest" });
+}
+function setDone(stepId) {
+  const el = id(stepId);
+  el.classList.remove("active"); el.classList.add("done");
+}
+
+function shortUrl(url) {
+  try { const u = new URL(url); return u.pathname.split("/").slice(-3).join("/"); }
+  catch { return url.slice(0, 50); }
+}
+
+function copyEl(elId) {
+  const el = id(elId);
+  const text = el.tagName === "TEXTAREA" ? el.value : el.textContent;
+  navigator.clipboard.writeText(text);
+}
+
+function downloadText(elId, filename) {
+  const el = id(elId);
+  const text = el.tagName === "TEXTAREA" ? el.value : el.textContent;
+  const a = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" })),
+    download: filename,
+  });
+  a.click();
+}
+
+// ── Init ───────────────────────────────────────────────────────────────
+loadHistory();
+</script>
+</body>
+</html>
