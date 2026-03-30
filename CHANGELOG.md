@@ -7,6 +7,30 @@
 
 ---
 
+## v1.1.0
+
+### 2026-03-30
+
+| # | 日期 | 版本 | 類型 | 異動檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 018 | 2026-03-30 | v1.1.0 | feat | `app.py` | 新增 `PROMPTS_DIR` 常數與目錄自動建立 |
+| 019 | 2026-03-30 | v1.1.0 | feat | `app.py` | 新增 `GET /api/prompts`：列出所有 prompt 模板 |
+| 020 | 2026-03-30 | v1.1.0 | feat | `app.py` | 新增 `GET /api/prompts/<filename>`：讀取模板內容 |
+| 021 | 2026-03-30 | v1.1.0 | feat | `app.py` | 新增 `POST /api/prompts`：建立 / 覆蓋模板（含路徑穿越防護）|
+| 022 | 2026-03-30 | v1.1.0 | feat | `app.py` | 新增 `DELETE /api/prompts/<filename>`：刪除模板 |
+| 023 | 2026-03-30 | v1.1.0 | feat | `index.html` | System Prompt 區塊改版：下拉選單 + 覆蓋儲存 + 新增 + 刪除 |
+| 024 | 2026-03-30 | v1.1.0 | feat | `index.html` | 新增「新增 Prompt Modal」：雙欄位驗證（名稱+內容不可為空）|
+| 025 | 2026-03-30 | v1.1.0 | feat | `prompts/六區塊標準版.md` | 新建：標準六區塊 prompt，含優化指引 |
+| 026 | 2026-03-30 | v1.1.0 | feat | `prompts/週報精簡版.md` | 新建：精簡四區塊 prompt，適合週報使用 |
+| 027 | 2026-03-30 | v1.1.0 | chore | Git | 從 git 追蹤移除舊文件 `README.md`、`README_Git_Setup.md`、`PRD_GitLab_Issue_Tool_v1.0.md`、`ReleaseNotes_GitLab_Issue_Tool.md` |
+| 028 | 2026-03-30 | v1.1.0 | style | `app.py` / `index.html` | 版號更新至 v1.1.0 |
+| 029 | 2026-03-30 | v1.1.0 | docs | `CLAUDE.md` | 新增 prompt API 端點速查、版本更新歷史 |
+| 030 | 2026-03-30 | v1.1.0 | docs | `PRD.md` | 新增 4.10–4.13 節 prompt API 完整定義 |
+| 031 | 2026-03-30 | v1.1.0 | docs | `RELEASE_NOTES.md` | 新增 v1.1.0 發行說明 |
+| 032 | 2026-03-30 | v1.1.0 | docs | `CHANGELOG.md` | 新增 #018–#032 變更紀錄 |
+
+---
+
 ## v1.0.0
 
 ### 2026-03-30

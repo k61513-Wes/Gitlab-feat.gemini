@@ -1,10 +1,10 @@
 """
 app.py — Flask 後端（Selenium 爬蟲 + Gemini CLI subprocess）
 新增：批次排程、自動存檔、統一輸出結構
-版本：v1.0.0
+版本：v1.1.0
 """
 
-APP_VERSION = "v1.0.0"
+APP_VERSION = "v1.1.0"
 
 import re
 import time
@@ -42,6 +42,10 @@ OUTPUT_RESULTS = OUTPUT_DIR / "results"
 OUTPUT_EXCEL   = OUTPUT_DIR / "excel"
 for _d in [OUTPUT_DIR, OUTPUT_RAW, OUTPUT_RESULTS, OUTPUT_EXCEL]:
     _d.mkdir(exist_ok=True)
+
+# Prompt 模板資料夾
+PROMPTS_DIR = Path("prompts")
+PROMPTS_DIR.mkdir(exist_ok=True)
 
 # 統一結構的固定區塊（需求 3）
 REQUIRED_SECTIONS = ["問題說明", "根本原因", "解決方式", "待辦事項", "討論共識", "補充內容"]
@@ -1323,6 +1327,73 @@ def get_gemini_model_info():
 
     # 完全無法確定
     return (None, "CLI 可用，但無法取得版本/模型資訊（模型由 CLI 自動決定）")
+
+# ── Prompt 模板管理 ──────────────────────────────────────────────────────
+
+@app.route("/api/prompts", methods=["GET"])
+def api_list_prompts():
+    """列出 prompts/ 資料夾內所有 .md 檔"""
+    prompts = []
+    for f in sorted(PROMPTS_DIR.glob("*.md"), key=lambda x: x.name):
+        prompts.append({
+            "filename": f.name,
+            "name":     f.stem,
+            "mtime":    datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
+            "size":     f.stat().st_size,
+        })
+    return jsonify({"prompts": prompts})
+
+
+@app.route("/api/prompts/<filename>", methods=["GET"])
+def api_get_prompt(filename):
+    """讀取單一 prompt 檔案內容"""
+    filepath = (PROMPTS_DIR / filename).resolve()
+    if not str(filepath).startswith(str(PROMPTS_DIR.resolve())):
+        return jsonify({"error": "非法的檔案路徑"}), 400
+    if not filepath.exists():
+        return jsonify({"error": f"找不到 prompt：{filename}"}), 404
+    content = filepath.read_text(encoding="utf-8")
+    return jsonify({"filename": filename, "name": filepath.stem, "content": content})
+
+
+@app.route("/api/prompts", methods=["POST"])
+def api_save_prompt():
+    """建立或覆蓋 prompt 檔案"""
+    data      = request.get_json(force=True)
+    filename  = (data.get("filename") or "").strip()
+    content   = (data.get("content")  or "").strip()
+    overwrite = bool(data.get("overwrite", False))
+
+    if not filename:
+        return jsonify({"error": "filename 不可為空"}), 400
+    if not content:
+        return jsonify({"error": "content 不可為空"}), 400
+    if not filename.endswith(".md"):
+        filename += ".md"
+
+    # 防止路徑穿越攻擊
+    filepath = (PROMPTS_DIR / filename).resolve()
+    if not str(filepath).startswith(str(PROMPTS_DIR.resolve())):
+        return jsonify({"error": "非法的檔案路徑"}), 400
+
+    if filepath.exists() and not overwrite:
+        return jsonify({"error": f"檔案已存在：{filename}，請使用覆蓋儲存"}), 409
+
+    filepath.write_text(content, encoding="utf-8")
+    return jsonify({"filename": filename, "saved": True})
+
+
+@app.route("/api/prompts/<filename>", methods=["DELETE"])
+def api_delete_prompt(filename):
+    """刪除 prompt 檔案"""
+    filepath = (PROMPTS_DIR / filename).resolve()
+    if not str(filepath).startswith(str(PROMPTS_DIR.resolve())):
+        return jsonify({"error": "非法的檔案路徑"}), 400
+    if not filepath.exists():
+        return jsonify({"error": f"找不到 prompt：{filename}"}), 404
+    filepath.unlink()
+    return jsonify({"filename": filename, "deleted": True})
+
 
 # ── 健康檢查 ──
 @app.route("/api/health", methods=["GET"])

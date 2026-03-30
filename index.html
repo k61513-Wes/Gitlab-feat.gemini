@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GitLab Issue 整理工具 v1.0.0</title>
+<title>GitLab Issue 整理工具 v1.1.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -139,6 +139,19 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 /* ── Hint ── */
 .hint { font-size: 11px; color: var(--text-dim); background: var(--bg3); border-left: 3px solid var(--accent-dim); padding: 7px 10px; border-radius: 0 4px 4px 0; font-family: var(--mono); line-height: 1.5; }
 
+/* ── Prompt modal ── */
+.pm-box { background: var(--bg2); border: 1px solid var(--border-hi); border-radius: 10px; width: 100%; max-width: 580px; display: flex; flex-direction: column; }
+.pm-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.pm-title { font-size: 13px; font-weight: 500; color: var(--text-bright); }
+.pm-body { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.pm-err { font-size: 11.5px; font-family: var(--mono); color: var(--red); background: rgba(224,92,92,0.08); border: 1px solid rgba(224,92,92,0.25); border-radius: 6px; padding: 7px 10px; display: none; }
+/* ── Prompt toolbar ── */
+.prompt-toolbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.prompt-toolbar label { font-size: 11px; font-family: var(--mono); color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; flex-shrink: 0; }
+.prompt-toolbar select { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 5px 8px; flex: 1; min-width: 0; cursor: pointer; }
+.prompt-toolbar select:focus { outline: none; border-color: var(--accent); }
+.prompt-count { font-size: 10px; color: var(--text-dim); font-family: var(--mono); flex-shrink: 0; }
+
 /* scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -149,7 +162,7 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 
 <header>
   <div class="logo">GL</div>
-  <h1>GitLab Issue 整理工具 <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-left:6px;">v1.0.0</span></h1>
+  <h1>GitLab Issue 整理工具 <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-left:6px;">v1.1.0</span></h1>
   <span class="sub">batch · scrape → process → export</span>
 </header>
 
@@ -215,8 +228,17 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
         <div id="load-issue-list" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
       </div>
       <div class="field">
-        <label>System Prompt（留空使用預設結構）</label>
-        <textarea id="process-prompt" rows="3" placeholder="留空即使用預設的六區塊結構（問題說明／根本原因／解決方式／待辦事項／討論共識／補充內容）"></textarea>
+        <div class="prompt-toolbar">
+          <label>System Prompt</label>
+          <select id="prompt-select" onchange="onPromptSelect()" title="選擇 Prompt 模板">
+            <option value="">── 選擇模板 ──</option>
+          </select>
+          <span class="prompt-count" id="prompt-count"></span>
+          <button class="btn-ghost btn-sm" onclick="savePromptOverwrite()" title="將目前編輯內容覆蓋回已選模板">💾 覆蓋儲存</button>
+          <button class="btn-ghost btn-sm" onclick="openNewPromptModal()" title="新增 Prompt 模板">＋ 新增</button>
+          <button class="btn-ghost btn-sm" onclick="deleteCurrentPrompt()" title="刪除目前選取的模板" style="color:var(--red);border-color:rgba(224,92,92,0.3)">🗑</button>
+        </div>
+        <textarea id="process-prompt" rows="7" placeholder="選擇上方模板自動帶入，或直接在此輸入自訂 System Prompt（留空使用後端預設六區塊結構）"></textarea>
       </div>
       <div class="field">
         <label>匯出格式指令（留空使用預設 JSON）</label>
@@ -311,6 +333,31 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
     </div>
     <div class="modal-body">
       <div class="modal-content" id="modal-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 新增 Prompt Modal ── -->
+<div class="modal-backdrop" id="modal-prompt" onclick="closePromptModal(event)">
+  <div class="pm-box">
+    <div class="pm-head">
+      <span class="pm-title">＋ 新增 Prompt 模板</span>
+      <button class="modal-close" onclick="closePromptModalDirect()">✕</button>
+    </div>
+    <div class="pm-body">
+      <div class="field">
+        <label>檔案名稱（不含 .md）</label>
+        <input type="text" id="new-prompt-name" placeholder="例如：客戶報告版、Bug 分析版…" />
+      </div>
+      <div class="field">
+        <label>Prompt 內容</label>
+        <textarea id="new-prompt-content" rows="12" placeholder="輸入完整的 System Prompt 內容…&#10;&#10;建議包含：&#10;- 角色設定（你是…）&#10;- 輸出格式規定&#10;- 注意事項"></textarea>
+      </div>
+      <div class="pm-err" id="new-prompt-error"></div>
+      <div class="btn-row">
+        <button class="btn-ghost" onclick="closePromptModalDirect()">取消</button>
+        <button class="btn-primary" onclick="createNewPrompt()">✓ 確認建立</button>
+      </div>
     </div>
   </div>
 </div>
@@ -729,8 +776,113 @@ function downloadText(elId, filename) {
   a.click();
 }
 
+// ── Prompt 管理 ────────────────────────────────────────────────────────
+async function loadPrompts() {
+  try {
+    const d = await api("/api/prompts");
+    const sel = id("prompt-select");
+    const current = sel.value;
+    sel.innerHTML = '<option value="">── 選擇模板 ──</option>';
+    (d.prompts || []).forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.filename;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+    // 恢復先前選取
+    if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
+    const cnt = (d.prompts || []).length;
+    id("prompt-count").textContent = cnt ? `${cnt} 個模板` : "";
+  } catch(e) { console.warn("載入 prompt 清單失敗", e); }
+}
+
+async function onPromptSelect() {
+  const filename = id("prompt-select").value;
+  if (!filename) return;
+  try {
+    const d = await api(`/api/prompts/${encodeURIComponent(filename)}`, null, "GET");
+    if (d.error) throw new Error(d.error);
+    id("process-prompt").value = d.content;
+  } catch(e) { alert("載入模板失敗：" + e.message); }
+}
+
+async function savePromptOverwrite() {
+  const filename = id("prompt-select").value;
+  const content  = id("process-prompt").value.trim();
+  if (!filename) { alert("請先從下拉選單選擇一個模板，才能覆蓋儲存"); return; }
+  if (!content)  { alert("Prompt 內容不可為空"); return; }
+  if (!confirm(`確定要用目前內容覆蓋「${filename}」？`)) return;
+  try {
+    const d = await api("/api/prompts", { filename, content, overwrite: true });
+    if (d.error) throw new Error(d.error);
+    // 短暫顯示成功提示
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = "✓ 已儲存"; btn.disabled = true;
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1500);
+  } catch(e) { alert("覆蓋儲存失敗：" + e.message); }
+}
+
+async function deleteCurrentPrompt() {
+  const filename = id("prompt-select").value;
+  if (!filename) { alert("請先選擇要刪除的模板"); return; }
+  if (!confirm(`確定要刪除「${filename}」？此操作無法復原。`)) return;
+  try {
+    const d = await api(`/api/prompts/${encodeURIComponent(filename)}`, null, "DELETE");
+    if (d.error) throw new Error(d.error);
+    id("process-prompt").value = "";
+    await loadPrompts();
+  } catch(e) { alert("刪除失敗：" + e.message); }
+}
+
+function openNewPromptModal() {
+  id("new-prompt-name").value    = "";
+  id("new-prompt-content").value = "";
+  id("new-prompt-error").style.display = "none";
+  id("modal-prompt").classList.add("open");
+}
+
+function closePromptModal(e)   { if (e.target === id("modal-prompt")) closePromptModalDirect(); }
+function closePromptModalDirect() { id("modal-prompt").classList.remove("open"); }
+
+async function createNewPrompt() {
+  const name    = id("new-prompt-name").value.trim();
+  const content = id("new-prompt-content").value.trim();
+  const errEl   = id("new-prompt-error");
+  errEl.style.display = "none";
+
+  // 雙欄位驗證
+  if (!name && !content) {
+    errEl.textContent = "⚠ 檔案名稱與 Prompt 內容皆不可為空";
+    errEl.style.display = "block"; return;
+  }
+  if (!name) {
+    errEl.textContent = "⚠ 請填寫檔案名稱";
+    errEl.style.display = "block"; return;
+  }
+  if (!content) {
+    errEl.textContent = "⚠ 請填寫 Prompt 內容";
+    errEl.style.display = "block"; return;
+  }
+
+  try {
+    const filename = name.endsWith(".md") ? name : name + ".md";
+    const d = await api("/api/prompts", { filename, content });
+    if (d.error) throw new Error(d.error);
+    await loadPrompts();
+    // 自動選取並帶入新建的模板
+    id("prompt-select").value = filename;
+    id("process-prompt").value = content;
+    closePromptModalDirect();
+  } catch(e) {
+    errEl.textContent = "✗ " + e.message;
+    errEl.style.display = "block";
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────────────
 loadHistory();
+loadPrompts();
 </script>
 </body>
 </html>

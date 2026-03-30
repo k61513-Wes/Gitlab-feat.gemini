@@ -2,6 +2,37 @@
 
 ---
 
+## v1.1.0 — Prompt 模板管理系統
+
+**發佈日期：2026-03-30**
+
+### ✨ 新增功能
+
+**Prompt 模板管理系統**
+- 新增 `prompts/` 資料夾，每個 Prompt 為獨立 `.md` 檔案，方便版控與管理
+- UI 新增模板下拉選單：可即時切換不同 Prompt，自動帶入編輯區
+- 新增「覆蓋儲存」：直接將編輯區內容存回選取的模板檔案
+- 新增「新增模板」Modal：提供檔名與內容雙欄位驗證（任一欄位為空則無法建立）
+- 新增「刪除模板」按鈕：附確認提示，防止誤刪
+- 預裝兩個預設模板：`六區塊標準版.md`（完整標準）、`週報精簡版.md`（精簡四區塊）
+
+**後端 API 新增**
+- `GET /api/prompts`：列出所有模板
+- `GET /api/prompts/<filename>`：讀取模板內容
+- `POST /api/prompts`：建立 / 覆蓋模板
+- `DELETE /api/prompts/<filename>`：刪除模板
+
+### 🧹 檔案整理
+- 移除舊版文件：`README.md`、`README_Git_Setup.md`、`PRD_GitLab_Issue_Tool_v1.0.md`、`ReleaseNotes_GitLab_Issue_Tool.md`
+
+### 📝 文件更新
+- `CLAUDE.md`、`PRD.md`、`RELEASE_NOTES.md`、`CHANGELOG.md` 全部更新至 v1.1.0
+
+### ⚠️ 已知問題
+- prompts/ 資料夾目前無法從 UI 直接重新命名模板（需手動更改檔案）
+
+---
+
 ## v1.0.0 — 首發版本
 
 **發佈日期：2026-03-27**

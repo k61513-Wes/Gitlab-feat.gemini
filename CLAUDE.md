@@ -10,7 +10,7 @@
 | 項目 | 說明 |
 |------|------|
 | **專案名稱** | GitLab Issue 整理工具 |
-| **目前版本** | v1.0.0 |
+| **目前版本** | v1.1.0 |
 | **技術棧** | Python 3.8+ / Flask / Selenium / Gemini CLI |
 | **主資料夾** | `Gitlab feat.gemini/`（唯一工作目錄） |
 | **Git 遠端** | https://github.com/k61513-Wes/Gitlab-feat.gemini.git |
@@ -138,6 +138,10 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 | `/api/batch_export_excel` | POST | 批量匯出 Excel |
 | `/api/outputs` | GET | 列出所有歷史存檔 |
 | `/api/outputs/<filename>` | GET | 下載/查看單筆存檔 |
+| `/api/prompts` | GET | 列出所有 prompt 模板 |
+| `/api/prompts/<filename>` | GET | 讀取單一 prompt 內容 |
+| `/api/prompts` | POST | 建立或覆蓋 prompt 模板 |
+| `/api/prompts/<filename>` | DELETE | 刪除 prompt 模板 |
 
 完整定義見 `PRD.md`。
 
@@ -188,6 +192,7 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 
 | 日期 | 版本 | 說明 |
 |------|------|------|
+| 2026-03-30 | v1.1.0 | 新增 Prompt 模板管理系統（prompts/ 資料夾、API 端點、UI 改版） |
 | 2026-03-30 | v1.0.0 | 重建文件體系（CLAUDE.md / PRD / RELEASE_NOTES / CHANGELOG） |
 | 2026-03-27 | — | 舊版 CLAUDE.md 初建，資料夾整合 |
 
