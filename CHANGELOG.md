@@ -7,6 +7,27 @@
 
 ---
 
+## v1.1.1
+
+### 2026-03-30
+
+| # | 日期 | 版本 | 類型 | 異動檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 033 | 2026-03-30 | v1.1.1 | feat | `app.py` | 新增 `_format_issue_preview()` 輔助函式：統一格式化 iid / title / web_url / state / assignees / milestone / labels |
+| 034 | 2026-03-30 | v1.1.1 | feat | `app.py` | 新增 `POST /api/preview_issues`：批量輕量預覽 Issue（不載入留言），支援 errors[] 回報 |
+| 035 | 2026-03-30 | v1.1.1 | refactor | `app.py` | `api_resolve_filter_url()` 改用 `_format_issue_preview()` 格式化回傳，新增 assignees / milestone / labels 欄位 |
+| 036 | 2026-03-30 | v1.1.1 | feat | `index.html` | 新增 `renderIssuePreviewList(issues, headerText)`：共用的豐富 Issue 預覽列表（含 #iid、👤 指派人、🏁 Milestone、狀態徽章）|
+| 037 | 2026-03-30 | v1.1.1 | feat | `index.html` | 新增 `previewIssueUrls(urls)`：呼叫 `/api/preview_issues`，單筆 URL 亦可顯示預覽列表 |
+| 038 | 2026-03-30 | v1.1.1 | refactor | `index.html` | `smartLoadList()` 改版：非篩選 URL 也呼叫 `previewIssueUrls()` 而非僅顯示數量 |
+| 039 | 2026-03-30 | v1.1.1 | refactor | `index.html` | `resolveFilterUrl()` 改用共用 `renderIssuePreviewList()` 渲染，消除重複程式碼 |
+| 040 | 2026-03-30 | v1.1.1 | style | `app.py` / `index.html` | 版號更新至 v1.1.1 |
+| 041 | 2026-03-30 | v1.1.1 | docs | `PRD.md` | 新增 4.14 節 `/api/preview_issues` 完整定義；更新 2.2 節說明單筆 URL 預覽行為；版號更新至 v1.1.1 |
+| 042 | 2026-03-30 | v1.1.1 | docs | `RELEASE_NOTES.md` | 新增 v1.1.1 發行說明 |
+| 043 | 2026-03-30 | v1.1.1 | docs | `CHANGELOG.md` | 新增 #033–#043 變更紀錄 |
+| 044 | 2026-03-30 | v1.1.1 | docs | `CLAUDE.md` | 版號更新至 v1.1.1，新增文件更新歷史 v1.1.1 條目 |
+
+---
+
 ## v1.1.0
 
 ### 2026-03-30

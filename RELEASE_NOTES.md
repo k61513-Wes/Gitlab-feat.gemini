@@ -2,6 +2,28 @@
 
 ---
 
+## v1.1.1 — Issue URL 預覽增強
+
+**發佈日期：2026-03-30**
+
+### ✨ 新增功能
+
+**單一 Issue URL 亦支援預覽清單**
+- 過去只有篩選頁面 URL 才會顯示 Issue 清單預覽，現在輸入單一或多筆 Issue URL 並點「🔍 載入清單」，同樣會呼叫後端 `/api/preview_issues` 端點並顯示預覽列表
+- 預覽列表欄位擴充：新增 Issue 編號（#iid）、指派人（👤）、Milestone（🏁）三個欄位
+- 篩選 URL 解析後的預覽列表也同步套用相同的豐富欄位格式
+
+**新增 `/api/preview_issues` 端點**
+- 批量輕量預覽：只呼叫 Issues 元數據 API，不載入留言，速度較完整爬取快
+- 回傳 `iid`、`title`、`web_url`、`state`、`assignees`、`milestone`、`labels`
+- 解析失敗的 URL 收入 `errors[]`，不影響其餘正常項目
+
+### 📝 文件更新
+- `PRD.md`：新增 4.14 節 `/api/preview_issues` 完整定義，更新 2.2 節說明
+- `RELEASE_NOTES.md`、`CHANGELOG.md`、`CLAUDE.md`：更新至 v1.1.1
+
+---
+
 ## v1.1.0 — Prompt 模板管理系統
 
 **發佈日期：2026-03-30**

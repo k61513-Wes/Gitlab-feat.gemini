@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GitLab Issue 整理工具 v1.1.0</title>
+<title>GitLab Issue 整理工具 v1.1.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -162,7 +162,7 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 
 <header>
   <div class="logo">GL</div>
-  <h1>GitLab Issue 整理工具 <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-left:6px;">v1.1.0</span></h1>
+  <h1>GitLab Issue 整理工具 <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-left:6px;">v1.1.1</span></h1>
   <span class="sub">batch · scrape → process → export</span>
 </header>
 
@@ -418,10 +418,35 @@ async function checkHealth() {
 
 // ── Smart URL input ────────────────────────────────────────────────────
 function isFilterUrl(text) {
-  // Single non-empty line that looks like a GitLab issues filter page URL
   const lines = text.trim().split("\n").filter(l => l.trim());
   if (lines.length !== 1) return false;
   return /\/-\/issues\/?\?/.test(lines[0].trim());
+}
+
+// 共用：渲染 Issue 預覽清單
+function renderIssuePreviewList(issues, headerText) {
+  id("load-count").textContent = headerText;
+  const listEl = id("load-issue-list");
+  listEl.innerHTML = issues.map(iss => {
+    const assigneesText = (iss.assignees || []).join(", ") || "—";
+    const milestoneText = iss.milestone ? iss.milestone.title : "—";
+    const stateColor    = iss.state === "opened"
+      ? "rgba(61,214,140,0.1);color:var(--green)"
+      : "rgba(110,110,136,0.2);color:var(--text-dim)";
+    return `
+      <div style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:flex-start;gap:8px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim);flex-shrink:0;padding-top:3px;min-width:30px">#${iss.iid}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${iss.title}">${iss.title}</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;font-family:var(--mono)">
+            <span title="被指派人">👤 ${assigneesText}</span>
+            <span title="Milestone">🏁 ${milestoneText}</span>
+          </div>
+        </div>
+        <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:${stateColor};flex-shrink:0;white-space:nowrap">${iss.state}</span>
+      </div>`;
+  }).join("");
+  id("load-preview").style.display = "flex";
 }
 
 async function smartLoadList() {
@@ -432,14 +457,51 @@ async function smartLoadList() {
     // 篩選頁面 URL → 呼叫 API 解析
     await resolveFilterUrl(raw.trim());
   } else {
-    // 個別 Issue URL → 直接計算數量
+    // 個別 Issue URL → 呼叫 preview API 顯示清單
     const urls = raw.split("\n").map(u => u.trim()).filter(u => u.startsWith("http"));
     if (!urls.length) {
       showSt("st-load", "error", "未偵測到有效的 Issue URL（需以 http 開頭）");
       return;
     }
+    await previewIssueUrls(urls);
+  }
+}
+
+async function previewIssueUrls(urls) {
+  const projectId = parseInt(S.projectId) || parseInt(id("cfg-project-id").value.trim());
+  const token     = S.token || id("cfg-token").value.trim();
+
+  const btn = id("btn-load");
+  btn.disabled = true; btn.textContent = "取得中...";
+  showSt("st-load", "info", `正在取得 ${urls.length} 個 Issue 資訊...`);
+  id("load-preview").style.display = "none";
+
+  try {
+    if (!projectId) throw new Error("請先在「連線設定」填寫 Project ID 並儲存");
+
+    const payload = { urls, project_id: projectId };
+    if (token) payload.private_token = token;
+
+    const d = await api("/api/preview_issues", payload);
+    if (d.error) throw new Error(d.error);
+
+    const errCount = (d.errors || []).length;
+    const header   = errCount
+      ? `${d.count} 個 Issue（${errCount} 筆無法取得）`
+      : `${d.count} 個 Issue`;
+    renderIssuePreviewList(d.issues, header);
+
+    const msg = errCount
+      ? `✓ 已載入 ${d.count} 筆，${errCount} 筆失敗（見清單）`
+      : `✓ 已載入 ${d.count} 個 Issue`;
+    showSt("st-load", "success", msg);
+
+  } catch(e) {
+    // API 取得失敗時，退回只顯示數量（避免卡住操作）
     id("load-preview").style.display = "none";
-    showSt("st-load", "success", `✓ 偵測到 ${urls.length} 個 Issue URL，可直接開始處理`);
+    showSt("st-load", "error", `無法取得 Issue 詳情：${e.message}`);
+  } finally {
+    btn.disabled = false; btn.textContent = "🔍 載入清單";
   }
 }
 
@@ -464,18 +526,9 @@ async function resolveFilterUrl(filterUrl) {
 
     // 將解析後的 URL 填回輸入框
     id("url-list").value = d.issues.map(i => i.web_url).join("\n");
-    id("load-count").textContent = `找到 ${d.count} 個 Issue（專案：${d.project}）`;
 
-    // 渲染預覽清單
-    const listEl = id("load-issue-list");
-    listEl.innerHTML = d.issues.map(iss => `
-      <div style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;gap:8px">
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim);flex-shrink:0">#${iss.iid}</span>
-        <span style="font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${iss.title}</span>
-        <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(61,214,140,0.1);color:var(--green);flex-shrink:0">${iss.state}</span>
-      </div>`).join("");
-
-    id("load-preview").style.display = "flex";
+    // 使用共用渲染函式（含編號、指派人、milestone）
+    renderIssuePreviewList(d.issues, `找到 ${d.count} 個 Issue（專案：${d.project}）`);
     showSt("st-load", "success", `✓ 已解析 ${d.count} 個 Issue，URL 已填入清單，可直接開始處理`);
   } catch(e) {
     showSt("st-load", "error", e.message);

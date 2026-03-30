@@ -1,10 +1,10 @@
 """
 app.py — Flask 後端（Selenium 爬蟲 + Gemini CLI subprocess）
 新增：批次排程、自動存檔、統一輸出結構
-版本：v1.1.0
+版本：v1.1.1
 """
 
-APP_VERSION = "v1.1.0"
+APP_VERSION = "v1.1.1"
 
 import re
 import time
@@ -1027,6 +1027,97 @@ def _fetch_issues_from_api(
     return sorted(all_issues.values(), key=lambda x: x["iid"])
 
 
+def _format_issue_preview(issue: dict) -> dict:
+    """將 GitLab API 回傳的 issue 物件格式化為預覽用的精簡結構。"""
+    assignees = [
+        a.get("name") or a.get("username", "")
+        for a in issue.get("assignees", [])
+    ]
+    # 相容 assignee（單一）與 assignees（陣列）兩種格式
+    if not assignees and issue.get("assignee"):
+        assignees = [issue["assignee"].get("name") or issue["assignee"].get("username", "")]
+
+    milestone = None
+    if issue.get("milestone"):
+        milestone = {
+            "title":    issue["milestone"].get("title", ""),
+            "due_date": issue["milestone"].get("due_date", ""),
+        }
+
+    return {
+        "iid":       issue["iid"],
+        "title":     issue.get("title", ""),
+        "web_url":   issue.get("web_url", ""),
+        "state":     issue.get("state", ""),
+        "assignees": assignees,
+        "milestone": milestone,
+        "labels":    [l["name"] if isinstance(l, dict) else l
+                      for l in issue.get("labels", [])],
+    }
+
+
+@app.route("/api/preview_issues", methods=["POST"])
+def api_preview_issues():
+    """
+    接收多個 Issue URL，輕量呼叫 GitLab API 取得基本預覽資訊。
+    （iid / title / state / assignees / milestone）
+    不取留言，速度快。
+    """
+    try:
+        import requests as req_lib
+    except ImportError:
+        return jsonify({"error": "缺少 requests 套件，請執行：pip install requests"}), 500
+
+    body          = request.get_json(force=True)
+    urls          = [u.strip() for u in (body.get("urls") or []) if u.strip()]
+    project_id    = body.get("project_id")
+    private_token = (body.get("private_token") or "").strip() or None
+
+    if not urls:
+        return jsonify({"error": "請提供至少一個 Issue URL"}), 400
+
+    headers = {"PRIVATE-TOKEN": private_token} if private_token else {}
+
+    # 從第一個 URL 推斷 base_url
+    m_base = re.match(r"(https?://[^/]+)", urls[0])
+    if not m_base:
+        return jsonify({"error": "無法解析 base URL"}), 400
+    base_url = m_base.group(1)
+
+    if not project_id:
+        return jsonify({"error": "請先在連線設定填寫 Project ID"}), 400
+
+    api_base = f"{base_url}/api/v4/projects/{project_id}/issues"
+    issues   = []
+    errors   = []
+
+    for url in urls:
+        m_iid = re.search(r"/issues/(\d+)", url)
+        if not m_iid:
+            errors.append({"url": url, "error": "無法解析 issue IID"})
+            continue
+        iid = int(m_iid.group(1))
+        try:
+            resp = req_lib.get(f"{api_base}/{iid}", headers=headers, timeout=10)
+            if resp.status_code == 401:
+                return jsonify({"error": "401 未授權，請確認 API Token 有效"}), 401
+            if resp.status_code == 404:
+                errors.append({"url": url, "error": f"找不到 Issue #{iid}"})
+                continue
+            if not resp.ok:
+                errors.append({"url": url, "error": f"API 錯誤 {resp.status_code}"})
+                continue
+            issues.append(_format_issue_preview(resp.json()))
+        except Exception as e:
+            errors.append({"url": url, "error": str(e)})
+
+    return jsonify({
+        "count":  len(issues),
+        "issues": issues,
+        "errors": errors,
+    })
+
+
 @app.route("/api/resolve_filter_url", methods=["POST"])
 def api_resolve_filter_url():
     """
@@ -1050,23 +1141,13 @@ def api_resolve_filter_url():
             private_token=private_token or None,
         )
 
-        issue_list = [
-            {
-                "iid":     issue["iid"],
-                "title":   issue["title"],
-                "web_url": issue["web_url"],
-                "labels":  [l["name"] if isinstance(l, dict) else l
-                            for l in issue.get("labels", [])],
-                "state":   issue.get("state", ""),
-            }
-            for issue in issues
-        ]
+        issue_list = [_format_issue_preview(issue) for issue in issues]
 
         return jsonify({
-            "count":      len(issue_list),
-            "project":    project_path,
-            "issues":     issue_list,
-            "web_urls":   [i["web_url"] for i in issue_list],
+            "count":    len(issue_list),
+            "project":  project_path,
+            "issues":   issue_list,
+            "web_urls": [i["web_url"] for i in issue_list],
         })
 
     except ValueError as e:
