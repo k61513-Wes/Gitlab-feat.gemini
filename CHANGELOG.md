@@ -7,6 +7,29 @@
 
 ---
 
+## v1.1.2
+
+### 2026-03-31
+
+| # | 日期 | 版本 | 類型 | 異動檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 045 | 2026-03-31 | v1.1.2 | fix | `index.html` | 移除硬寫的 Project ID (`594`) 與 API Token，改為空值 + placeholder 提示 |
+| 046 | 2026-03-31 | v1.1.2 | feat | `index.html` | 新增「記住 Project ID」 checkbox，透過 localStorage 保存，重新整理頁面後自動帶入 |
+| 047 | 2026-03-31 | v1.1.2 | fix | `requirements.txt` | 移除未使用的 `anthropic>=0.25.0` 套件依賴 |
+| 048 | 2026-03-31 | v1.1.2 | refactor | `app.py` | `call_gemini_cli()` 移除無用的 `tempfile.NamedTemporaryFile` 暫存檔建立與清理，移除 `import tempfile` |
+| 049 | 2026-03-31 | v1.1.2 | fix | `app.py` | `api_output_file()` 新增 `OUTPUT_EXCEL` 搜尋路徑，支援 `.xlsx` 檔案直接下載（修復 Excel 下載 404） |
+| 050 | 2026-03-31 | v1.1.2 | fix | `app.py` | `_run_gemini_cmd()` 消除 `shell=True`，改用 `["cmd", "/c", ...]` list 形式防止 command injection |
+| 051 | 2026-03-31 | v1.1.2 | fix | `DEPLOY.md` | 修正 `GEMINI_TIMEOUT` 預設值從 120 改為 300，與程式碼一致 |
+| 052 | 2026-03-31 | v1.1.2 | feat | `index.html` | 前端 `api()` 函式新增 HTTP 狀態碼檢查與非 JSON 回應的友善錯誤處理 |
+| 053 | 2026-03-31 | v1.1.2 | style | `app.py` / `index.html` | 版號更新至 v1.1.2 |
+| 054 | 2026-03-31 | v1.1.2 | docs | `PRD.md` | 版號更新至 v1.1.2，新增版本歷史條目 |
+| 055 | 2026-03-31 | v1.1.2 | docs | `RELEASE_NOTES.md` | 新增 v1.1.2 發行說明 |
+| 056 | 2026-03-31 | v1.1.2 | docs | `CHANGELOG.md` | 新增 #045–#058 變更紀錄 |
+| 057 | 2026-03-31 | v1.1.2 | docs | `CLAUDE.md` | 版號更新至 v1.1.2，新增文件更新歷史條目 |
+| 058 | 2026-03-31 | v1.1.2 | docs | `DEPLOY.md` | 修正 GEMINI_TIMEOUT 預設值與安全說明 |
+
+---
+
 ## v1.1.1
 
 ### 2026-03-30

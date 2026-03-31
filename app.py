@@ -1,17 +1,16 @@
 """
 app.py — Flask 後端（Selenium 爬蟲 + Gemini CLI subprocess）
 新增：批次排程、自動存檔、統一輸出結構
-版本：v1.1.1
+版本：v1.1.2
 """
 
-APP_VERSION = "v1.1.1"
+APP_VERSION = "v1.1.2"
 
 import re
 import time
 import json
 import platform
 import subprocess
-import tempfile
 import os
 import shutil
 from datetime import datetime
@@ -146,13 +145,7 @@ def call_gemini_cli(system_prompt: str, user_text: str, timeout: int = None) -> 
     if len(user_text) > MAX_INPUT_CHARS:
         user_text = user_text[:MAX_INPUT_CHARS] + "\n\n[... 內容過長，已截斷 ...]"
 
-    full_prompt = f"{system_prompt}\n\n---\n\n{user_text}"
-
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".txt", encoding="utf-8", delete=False
-    ) as f:
-        f.write(full_prompt)
-        tmp_path = f.name
+        full_prompt = f"{system_prompt}\n\n---\n\n{user_text}"
 
     try:
         result = subprocess.run(
@@ -185,11 +178,6 @@ def call_gemini_cli(system_prompt: str, user_text: str, timeout: int = None) -> 
             "請先安裝：npm install -g @google/gemini-cli，"
             "或設定 GEMINI_CLI_PATH 環境變數指向正確路徑"
         )
-    finally:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
 
 
 # ─── Selenium 工具 ───────────────────────────────────────────────────────
@@ -761,13 +749,17 @@ def api_outputs():
 # ── 讀取單一存檔內容 ──
 @app.route("/api/outputs/<filename>", methods=["GET"])
 def api_output_file(filename):
-    # 安全防護：只允許讀取 .txt 檔
-    if not re.match(r"^[\w\-\.]+\.txt$", filename):
+        # Security: only allow .txt and .xlsx files
+    if not re.match(r"^[\w\-\.]+\.(txt|xlsx)$", filename):
         return jsonify({"error": "非法檔名"}), 400
-    # 依序在 raw/ 和 results/ 中尋找
-    for subdir in [OUTPUT_RAW, OUTPUT_RESULTS]:
+    # Search in raw/, results/, and excel/ directories
+    for subdir in [OUTPUT_RAW, OUTPUT_RESULTS, OUTPUT_EXCEL]:
         filepath = subdir / filename
         if filepath.exists():
+            if filename.endswith(".xlsx"):
+                return send_from_directory(
+                    str(subdir.resolve()), filename, as_attachment=True
+                )
             return jsonify({"filename": filename, "content": filepath.read_text(encoding="utf-8")})
     return jsonify({"error": "檔案不存在"}), 404
 
@@ -1301,22 +1293,19 @@ IS_WINDOWS = platform.system() == "Windows"
 
 def _run_gemini_cmd(args, timeout=5):
     """
-    安全執行 Gemini CLI 命令，自動處理 Windows .cmd 文件
-    返回 (stdout, stderr, returncode) 或 (None, error_str, -1)
+    Safely run Gemini CLI command, handles Windows .cmd files.
+    Returns (stdout, stderr, returncode) or (None, error_str, -1)
     """
     try:
-        if IS_WINDOWS:
-            # Windows: .cmd 文件需要透過 shell 執行
-            cmd_str = f'"{GEMINI_CLI}" {" ".join(args)}'
-            result = subprocess.run(
-                cmd_str, capture_output=True, text=True,
-                timeout=timeout, shell=True, encoding="utf-8", errors="replace"
-            )
-        else:
-            result = subprocess.run(
-                [GEMINI_CLI] + args, capture_output=True, text=True,
-                timeout=timeout, encoding="utf-8", errors="replace"
-            )
+        cmd = [GEMINI_CLI] + args
+        if IS_WINDOWS and GEMINI_CLI.endswith((".cmd", ".bat")):
+            # Windows .cmd needs cmd.exe, use list form to avoid shell injection
+            cmd = ["cmd", "/c", GEMINI_CLI] + args
+
+        result = subprocess.run(
+            cmd, capture_output=True, text=True,
+            timeout=timeout, encoding="utf-8", errors="replace"
+        )
         return result.stdout, result.stderr, result.returncode
     except subprocess.TimeoutExpired:
         return None, "timeout", -1

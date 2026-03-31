@@ -2,6 +2,35 @@
 
 ---
 
+## v1.1.2 — 安全修正與穩定性改進
+
+**發佈日期：2026-03-31**
+
+### 🔒 安全修正
+
+- **移除硬寫的認證資訊**：Project ID 與 API Token 不再預填在 HTML 中，避免推送至版控時外洩
+- **消除 `shell=True` 安全風險**：`_run_gemini_cmd()` 改用 `["cmd", "/c", ...]` list 形式，防止潛在的 command injection
+- **移除無用的 `anthropic` 套件依賴**：`requirements.txt` 不再包含未使用的套件
+
+### 🐛 已修復問題
+
+- **修復 Excel 下載 404 錯誤**：`/api/outputs/<filename>` 現在會搜尋 `outputs/excel/` 目錄，並支援 `.xlsx` 檔案直接下載
+- **移除 `call_gemini_cli()` 中無用的暫存檔建立**：消除每次 LLM 呼叫的多餘磁碟 I/O
+- **修正 `DEPLOY.md` 與程式碼的 `GEMINI_TIMEOUT` 預設值不一致**：統一為 300 秒
+
+### ✨ 新增功能
+
+- **記住 Project ID**：連線設定新增「記住 Project ID」勾選框，透過 localStorage 保存，重新整理頁面後自動帶入
+
+### 🔧 技術改進
+
+- **前端 `api()` 函式錯誤處理增強**：新增 HTTP 狀態碼檢查與非 JSON 回應的友善錯誤訊息
+
+### 📝 文件更新
+- `PRD.md`、`RELEASE_NOTES.md`、`CHANGELOG.md`、`CLAUDE.md`、`DEPLOY.md`：更新至 v1.1.2
+
+---
+
 ## v1.1.1 — Issue URL 預覽增強
 
 **發佈日期：2026-03-30**

@@ -147,7 +147,7 @@ export GEMINI_CLI_PATH="$(npm root -g)/../bin/gemini"
 | 變數 | 預設值 | 說明 |
 |------|--------|------|
 | `GEMINI_CLI_PATH` | `gemini` | CLI 完整路徑 |
-| `GEMINI_TIMEOUT` | `120` | CLI 執行 timeout（秒） |
+| `GEMINI_TIMEOUT` | `300` | CLI 執行 timeout（秒） |
 | `MAX_INPUT_CHARS` | `40000` | 最大輸入字元數 |
 | `FLASK_HOST` | `127.0.0.1` | Flask 監聽位址（勿改為 0.0.0.0） |
 | `FLASK_PORT` | `5000` | Flask 監聽埠 |
@@ -171,7 +171,7 @@ GEMINI_TIMEOUT=180 FLASK_PORT=8080 python app.py
 | subprocess 安全 | `shell=False`、不使用字串拼接指令 |
 | Shell injection 防護 | 輸入文字移除控制字元後以 stdin 傳入（非命令列參數） |
 | 輸入截斷 | 超過 40,000 字元自動截斷，防止記憶體爆炸 |
-| 執行超時 | subprocess 設 120 秒 timeout，防止 hang |
+| 執行超時 | subprocess 設 300 秒 timeout（可透過環境變數調整），防止 hang |
 | 套件隔離 | Python venv，不污染系統 Python |
 
 ### 你需要自行注意的事項

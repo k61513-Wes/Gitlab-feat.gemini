@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GitLab Issue 整理工具 v1.1.1</title>
+<title>GitLab Issue 整理工具 v1.1.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -162,7 +162,7 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 
 <header>
   <div class="logo">GL</div>
-  <h1>GitLab Issue 整理工具 <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-left:6px;">v1.1.1</span></h1>
+  <h1>GitLab Issue 整理工具 <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-left:6px;">v1.1.2</span></h1>
   <span class="sub">batch · scrape → process → export</span>
 </header>
 
@@ -179,9 +179,15 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
     </div>
     <div class="step-divider"></div>
     <div class="step-body" style="display:flex">
-      <div class="field-row">
-        <div class="field"><label>Project ID（必填）</label><input type="text" id="cfg-project-id" value="594" placeholder="594" style="font-family:var(--mono)" autocomplete="off"></div>
-        <div class="field"><label>API Token（必填）</label><input type="password" id="cfg-token" value="iwvKCYFpdTPTcq-nqZ3L" placeholder="glpat-xxxx" style="font-family:var(--mono)" autocomplete="off"></div>
+            <div class="field-row">
+        <div class="field">
+          <label>Project ID（必填）</label>
+          <input type="text" id="cfg-project-id" value="" placeholder="例如：594" style="font-family:var(--mono)" autocomplete="off">
+          <label style="display:flex;align-items:center;gap:5px;margin-top:4px;text-transform:none;cursor:pointer;user-select:none">
+            <input type="checkbox" id="cfg-remember-pid" style="width:auto;accent-color:var(--accent);cursor:pointer"> 記住 Project ID
+          </label>
+        </div>
+        <div class="field"><label>API Token（必填）</label><input type="password" id="cfg-token" value="" placeholder="glpat-xxxx" style="font-family:var(--mono)" autocomplete="off"></div>
       </div>
       <div class="hint" style="border-color:rgba(61,214,140,0.4)">✓ 使用 GitLab API 模式：速度快 10 倍，不需帳號密碼。若 API 失敗才需填以下帳密作為備用。</div>
       <div class="field-row">
@@ -384,7 +390,14 @@ function saveConfig() {
   }
   S.projectId = pid; S.token = tok;
   S.username  = u;   S.password = p;
-  S.timeout   = timeout;
+    S.timeout   = timeout;
+
+  // Remember Project ID via localStorage
+  if (id("cfg-remember-pid").checked) {
+    localStorage.setItem("gitlab_project_id", pid);
+  } else {
+    localStorage.removeItem("gitlab_project_id");
+  }
 
   const modeLabel = hasApi ? `API 模式（Project ${pid}）` : "Selenium 模式（備用）";
   showSt("st-config","success",`✓ 設定已儲存（${modeLabel}，Timeout ${timeout}s）`);
@@ -788,8 +801,18 @@ async function api(path, body, signalOrMethod) {
   };
   if (body) opts.body = JSON.stringify(body);
   if (isSignal) opts.signal = signalOrMethod;
-  const res = await fetch(path, opts);
-  return res.json();
+    const res = await fetch(path, opts);
+  // Parse JSON safely; throw friendly error for non-JSON responses
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`伺服器錯誤（HTTP ${res.status}），回應非 JSON 格式`);
+  }
+  if (!res.ok && data.error) {
+    throw new Error(data.error);
+  }
+  return data;
 }
 
 function showSt(elId, type, msg) {
@@ -934,6 +957,14 @@ async function createNewPrompt() {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────
+// Restore remembered Project ID from localStorage
+(function restoreProjectId() {
+  const saved = localStorage.getItem("gitlab_project_id");
+  if (saved) {
+    id("cfg-project-id").value = saved;
+    id("cfg-remember-pid").checked = true;
+  }
+})();
 loadHistory();
 loadPrompts();
 </script>
