@@ -888,12 +888,13 @@ async function savePromptOverwrite() {
   if (!filename) { alert("請先從下拉選單選擇一個模板，才能覆蓋儲存"); return; }
   if (!content)  { alert("Prompt 內容不可為空"); return; }
   if (!confirm(`確定要用目前內容覆蓋「${filename}」？`)) return;
+  // Capture button ref before await (event object won't survive async boundary)
+  const btn = document.querySelector('button[onclick="savePromptOverwrite()"]');
+  const orig = btn ? btn.textContent : "";
   try {
     const d = await api("/api/prompts", { filename, content, overwrite: true });
     if (d.error) throw new Error(d.error);
-    // 短暫顯示成功提示
-    const btn = event.target;
-    const orig = btn.textContent;
+    // Show brief success feedback
     btn.textContent = "✓ 已儲存"; btn.disabled = true;
     setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1500);
   } catch(e) { alert("覆蓋儲存失敗：" + e.message); }
