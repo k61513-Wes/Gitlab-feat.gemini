@@ -145,7 +145,7 @@ def call_gemini_cli(system_prompt: str, user_text: str, timeout: int = None) -> 
     if len(user_text) > MAX_INPUT_CHARS:
         user_text = user_text[:MAX_INPUT_CHARS] + "\n\n[... 內容過長，已截斷 ...]"
 
-        full_prompt = f"{system_prompt}\n\n---\n\n{user_text}"
+    full_prompt = f"{system_prompt}\n\n---\n\n{user_text}"
 
     try:
         result = subprocess.run(
