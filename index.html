@@ -110,6 +110,21 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 .qi-url  { font-family: var(--mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qi-status { font-size: 11px; display: flex; align-items: center; gap: 5px; }
 .qi-status .icon { font-size: 13px; line-height: 1; }
+.qi-phases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
+.qi-phase { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; background: rgba(110,110,136,0.06); min-width: 0; }
+.qi-phase-name { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
+.qi-phase-state { font-size: 10px; color: var(--text); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qi-phase.waiting { opacity: 0.7; }
+.qi-phase.running { border-color: rgba(74,158,255,0.35); background: rgba(74,158,255,0.08); }
+.qi-phase.done { border-color: rgba(61,214,140,0.35); background: rgba(61,214,140,0.08); }
+.qi-phase.error { border-color: rgba(224,92,92,0.35); background: rgba(224,92,92,0.08); }
+.qi-models { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.qi-model-pill { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); background: rgba(110,110,136,0.08); }
+.qi-model-pill.running { border-color: rgba(74,158,255,0.35); color: var(--blue); background: rgba(74,158,255,0.08); }
+.qi-model-pill.ok { border-color: rgba(61,214,140,0.35); color: var(--green); background: rgba(61,214,140,0.08); }
+.qi-model-pill.failed { border-color: rgba(224,92,92,0.35); color: var(--red); background: rgba(224,92,92,0.08); }
+.qi-model-pill.skipped { border-color: rgba(240,165,0,0.35); color: var(--amber); background: rgba(240,165,0,0.08); }
+.qi-model-note { font-family: var(--mono); font-size: 10px; color: var(--text-dim); line-height: 1.5; white-space: pre-wrap; }
 .qi-files { font-family: var(--mono); font-size: 10px; color: var(--text-dim); display: flex; flex-direction: column; gap: 2px; }
 .qi-files span { cursor: pointer; color: var(--blue); }
 .qi-files span:hover { text-decoration: underline; }
@@ -251,6 +266,12 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
         <textarea id="export-prompt" rows="3" placeholder='留空使用預設 JSON 格式，或自訂：例如「輸出成週報段落」「轉成 Jira Wiki 語法」'></textarea>
       </div>
       <div class="hint">💡 程式會依序處理每個 URL：爬取 → LLM 整理 → 格式匯出，每筆結果自動存檔。</div>
+      <div class="field" style="max-width:420px">
+        <label>LLM 模型（送出處理前選擇）</label>
+        <select id="run-model" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:12.5px;padding:9px 12px;">
+          <option value="">請先檢查 Gemini CLI</option>
+        </select>
+      </div>
       <div class="btn-row">
         <button class="btn-primary" id="btn-start" onclick="startBatch()" disabled>開始批次處理</button>
         <button class="btn-ghost" id="btn-stop" onclick="stopBatch()" disabled>停止</button>
@@ -293,7 +314,7 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
           <span class="out-label">LLM 整理結果</span>
           <div style="display:flex;gap:6px">
             <button class="btn-ghost btn-sm" onclick="copyEl('last-result')">複製</button>
-            <button class="btn-ghost btn-sm" onclick="downloadText('last-result','result.md')">下載</button>
+            <button class="btn-ghost btn-sm" onclick="downloadLastResult()">下載</button>
           </div>
         </div>
         <div id="last-result" class="final-out"></div>
@@ -301,7 +322,7 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
           <span class="out-label">格式匯出</span>
           <div style="display:flex;gap:6px">
             <button class="btn-ghost btn-sm" onclick="copyEl('last-export')">複製</button>
-            <button class="btn-ghost btn-sm" onclick="downloadText('last-export','export.txt')">下載</button>
+            <button class="btn-ghost btn-sm" onclick="downloadLastExport()">下載</button>
           </div>
         </div>
         <div id="last-export" class="final-out"></div>
@@ -370,7 +391,11 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────
-const S = { username: "", password: "", projectId: "", token: "", timeout: 300, running: false, stopFlag: false };
+const S = {
+  username: "", password: "", projectId: "", token: "", timeout: 300,
+  running: false, stopFlag: false, modelChain: [], selectedModel: "",
+  lastResultMeta: null, lastExportMeta: null
+};
 let _abortController = null;  // 用於立即中止當前請求
 
 // ── Config ─────────────────────────────────────────────────────────────
@@ -409,27 +434,64 @@ function saveConfig() {
 
 async function checkHealth() {
   const btn = id("btn-health");
-  btn.disabled = true; btn.textContent = "檢查中...";
-  showSt("st-config","info","確認 Gemini CLI...");
+  btn.disabled = true; btn.textContent = "???...";
+  showSt("st-config","info","?? Gemini CLI...");
   try {
     const d = await api("/api/health");
+    S.modelChain = Array.isArray(d.model_chain) ? d.model_chain : [];
+    refreshModelSelect();
     if (d.cli_found) {
-      let msg = `✓ Gemini CLI 就緒`;
-      msg += `\n路徑: ${d.gemini_cli}`;
+      let msg = `? Gemini CLI ??`;
+      msg += `\n??: ${d.gemini_cli}`;
       msg += `\nTimeout: ${d.timeout}s`;
-      if (d.model_name && d.model_name !== "未確定") {
-        msg += `\n模型: ${d.model_name} (${d.model_info})`;
-      } else if (d.model_info) {
-        msg += `\n${d.model_info}`;
+      const enabledModels = S.modelChain.filter(item => item && item.allowed).map(item => item.label);
+      if (enabledModels.length) {
+        msg += `\n????: ${enabledModels.join(" / ")}`;
       }
       showSt("st-config","success", msg.split("\n").join(" | "));
     }
-    else showSt("st-config","error",`找不到 Gemini CLI（${d.gemini_cli}），請先執行安裝指令`);
-  } catch(e) { showSt("st-config","error",`健康檢查失敗：${e.message}`); }
-  finally { btn.disabled = false; btn.textContent = "檢查 Gemini CLI"; }
+    else showSt("st-config","error",`??? Gemini CLI?${d.gemini_cli}??????????`);
+  } catch(e) { showSt("st-config","error",`???????${e.message}`); }
+  finally { btn.disabled = false; btn.textContent = "?? Gemini CLI"; }
 }
 
-// ── Smart URL input ────────────────────────────────────────────────────
+async function resolveModelChain() {
+  if (Array.isArray(S.modelChain) && S.modelChain.length) return S.modelChain;
+  const d = await api("/api/health");
+  S.modelChain = Array.isArray(d.model_chain) ? d.model_chain : [];
+  refreshModelSelect();
+  return S.modelChain;
+}
+
+function refreshModelSelect() {
+  const sel = id("run-model");
+  if (!sel) return;
+  const current = S.selectedModel || sel.value;
+  const models = (S.modelChain || []).filter(item => item && item.allowed && item.model_id);
+  sel.innerHTML = "";
+  if (!models.length) {
+    sel.innerHTML = '<option value="">???? Gemini CLI</option>';
+    S.selectedModel = "";
+    return;
+  }
+  models.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = item.model_id;
+    opt.textContent = `${item.label} (${item.model_id})`;
+    sel.appendChild(opt);
+  });
+  sel.value = models.some(item => item.model_id === current) ? current : models[0].model_id;
+  S.selectedModel = sel.value;
+}
+
+function getSelectedModel() {
+  const selected = id("run-model").value.trim();
+  const model = (S.modelChain || []).find(item => item.model_id === selected);
+  if (!selected || !model || !model.allowed) return null;
+  S.selectedModel = selected;
+  return model;
+}
+
 function isFilterUrl(text) {
   const lines = text.trim().split("\n").filter(l => l.trim());
   if (lines.length !== 1) return false;
@@ -560,6 +622,10 @@ async function startBatch() {
   const urls = raw.split("\n").map(u => u.trim()).filter(u => u.startsWith("http"));
   if (!urls.length) { showSt("st-batch","error","請輸入至少一個有效的 URL"); return; }
 
+  await resolveModelChain();
+  const selectedModel = getSelectedModel();
+  if (!selectedModel) { showSt("st-batch","error","請先選擇一個可用的 LLM 模型"); return; }
+
   S.running = true; S.stopFlag = false;
   id("btn-start").disabled = true;
   id("btn-stop").disabled = false;
@@ -568,17 +634,31 @@ async function startBatch() {
 
   // 初始化進度列表
   id("queue-list").innerHTML = "";
-  urls.forEach((url, i) => renderQueueItem(i, url, "waiting", "⏳ 等待中"));
+  urls.forEach((url, i) => {
+    renderQueueItem(i, url, "waiting", "⏳ 等待中");
+    setQueuePhases(i, {
+      scrape: { state: "waiting", text: "等待中" },
+      llm: { state: "waiting", text: "等待中" },
+      export: { state: "waiting", text: "等待中" },
+    });
+    setQueueModelDetails(i, [], `已選模型：${selectedModel.label}`);
+  });
 
   let doneCount = 0;
   for (let i = 0; i < urls.length; i++) {
     if (S.stopFlag) { showSt("st-batch","error","⏹ 已中止"); break; }
 
     const url = urls[i];
+    let currentStage = "scrape";
     _abortController = new AbortController();
     const sig = _abortController.signal;
 
     updateQueueItem(i, "running", useApi ? "⚡ API 取資料中..." : "🔄 Selenium 爬取中...", null);
+    setQueuePhases(i, {
+      scrape: { state: "running", text: useApi ? "API 擷取中" : "Selenium 擷取中" },
+      llm: { state: "waiting", text: "等待中" },
+      export: { state: "waiting", text: "等待中" },
+    });
     showSt("st-batch","info",`處理第 ${i+1}/${urls.length} 筆：${shortUrl(url)}`);
 
     try {
@@ -598,9 +678,18 @@ async function startBatch() {
       if (scrapeRes.error) throw new Error(scrapeRes.error);
 
       if (S.stopFlag) { updateQueueItem(i, "waiting", "⏹ 中止", null); break; }
-      updateQueueItem(i, "running", "🤖 LLM 整理中...", null);
+      updateQueueItem(i, "running", `🤖 ${selectedModel.label} 整理中...`, null);
+      setQueuePhases(i, {
+        scrape: { state: "done", text: "完成" },
+        llm: { state: "running", text: `${selectedModel.label} 執行中` },
+        export: { state: "waiting", text: "等待中" },
+      });
+      setQueueModelDetails(i, [
+        { label: selectedModel.label, model_id: selectedModel.model_id, status: "running" }
+      ], `目前模型：${selectedModel.label}`);
 
       // Step B: LLM 整理
+      currentStage = "llm";
       _abortController = new AbortController();
       const sig2 = _abortController.signal;
       const processRes = await api("/api/process", {
@@ -608,14 +697,25 @@ async function startBatch() {
         system_prompt: id("process-prompt").value.trim(),
         url:           url,
         timeout:       S.timeout || 300,
+        model_name:    selectedModel.model_id,
+        model_label:   selectedModel.label,
       }, sig2);
       if (processRes.error) throw new Error(processRes.error);
 
       if (S.stopFlag) { updateQueueItem(i, "waiting", "⏹ 中止", null); break; }
 
       // Step C: 格式匯出
+      currentStage = "export";
       _abortController = new AbortController();
       const sig3 = _abortController.signal;
+      setQueuePhases(i, {
+        scrape: { state: "done", text: "完成" },
+        llm: { state: "done", text: `${selectedModel.label} 完成` },
+        export: { state: "running", text: "匯出中" },
+      });
+      setQueueModelDetails(i, [
+        { label: selectedModel.label, model_id: selectedModel.model_id, status: "ok" }
+      ], `最終採用：${selectedModel.label}`);
       const exportRes = await api("/api/export", {
         processed_text: processRes.result,
         export_prompt:  id("export-prompt").value.trim(),
@@ -627,17 +727,62 @@ async function startBatch() {
       const files = [];
       if (scrapeRes.saved_raw)      files.push({ label: "raw",    path: scrapeRes.saved_raw });
       if (processRes.saved_result)  files.push({ label: "result", path: processRes.saved_result });
-      updateQueueItem(i, "done", `✓ 完成`, files);
+      updateQueueItem(i, "done", `✓ 完成（${selectedModel.label}）`, files);
+      setQueuePhases(i, {
+        scrape: { state: "done", text: "完成" },
+        llm: { state: "done", text: `${selectedModel.label} 完成` },
+        export: { state: "done", text: "完成" },
+      });
+      setQueueModelDetails(i, [
+        { label: selectedModel.label, model_id: selectedModel.model_id, status: "ok" }
+      ], `最終採用：${processRes.used_model_label || selectedModel.label}`);
       id("badge-step2").textContent = `${doneCount} / ${urls.length}`;
-      showLastResult(processRes.result, exportRes.output);
+      showLastResult(processRes.result, exportRes.output, {
+        url,
+        modelName: processRes.used_model || selectedModel.model_id,
+      });
       loadHistory();
 
     } catch(e) {
       if (e.name === "AbortError" || S.stopFlag) {
         updateQueueItem(i, "waiting", "⏹ 中止", null);
+        setQueuePhases(i, {
+          scrape: { state: "waiting", text: "已中止" },
+          llm: { state: "waiting", text: "已中止" },
+          export: { state: "waiting", text: "已中止" },
+        });
+        setQueueModelDetails(i, [
+          { label: selectedModel.label, model_id: selectedModel.model_id, status: "skipped", note: "已中止" }
+        ], "本筆已中止");
         break;
       }
       updateQueueItem(i, "error", `✗ ${e.message}`, null);
+      if (currentStage === "scrape") {
+        setQueuePhases(i, {
+          scrape: { state: "error", text: "失敗" },
+          llm: { state: "waiting", text: "未執行" },
+          export: { state: "waiting", text: "未執行" },
+        });
+        setQueueModelDetails(i, [], "尚未進入模型處理");
+      } else if (currentStage === "llm") {
+        setQueuePhases(i, {
+          scrape: { state: "done", text: "完成" },
+          llm: { state: "error", text: "失敗" },
+          export: { state: "waiting", text: "未執行" },
+        });
+        setQueueModelDetails(i, [
+          { label: selectedModel.label, model_id: selectedModel.model_id, status: "failed", note: e.message }
+        ], `模型失敗：${selectedModel.label}`);
+      } else {
+        setQueuePhases(i, {
+          scrape: { state: "done", text: "完成" },
+          llm: { state: "done", text: `${selectedModel.label} 完成` },
+          export: { state: "error", text: "失敗" },
+        });
+        setQueueModelDetails(i, [
+          { label: selectedModel.label, model_id: selectedModel.model_id, status: "ok" }
+        ], "模型完成，但匯出失敗");
+      }
       showSt("st-batch","error",`第 ${i+1} 筆失敗：${e.message}`);
     }
   }
@@ -713,6 +858,13 @@ function renderQueueItem(idx, url, state, statusText) {
   el.innerHTML = `
     <div class="qi-url" title="${url}">${url}</div>
     <div class="qi-status" id="qi-st-${idx}"><span class="icon"></span><span>${statusText}</span></div>
+    <div class="qi-phases" id="qi-phases-${idx}">
+      <div class="qi-phase waiting" id="qi-phase-${idx}-scrape"><div class="qi-phase-name">Scrape</div><div class="qi-phase-state">等待中</div></div>
+      <div class="qi-phase waiting" id="qi-phase-${idx}-llm"><div class="qi-phase-name">LLM</div><div class="qi-phase-state">等待中</div></div>
+      <div class="qi-phase waiting" id="qi-phase-${idx}-export"><div class="qi-phase-name">Export</div><div class="qi-phase-state">等待中</div></div>
+    </div>
+    <div class="qi-models" id="qi-models-${idx}"></div>
+    <div class="qi-model-note" id="qi-model-note-${idx}"></div>
     <div class="qi-files" id="qi-files-${idx}"></div>
   `;
   id("queue-list").appendChild(el);
@@ -736,12 +888,50 @@ function updateQueueItem(idx, state, statusText, files) {
   }
 }
 
+function setQueueModelDetails(idx, attempts, note) {
+  const modelsEl = id(`qi-models-${idx}`);
+  const noteEl = id(`qi-model-note-${idx}`);
+  if (modelsEl) {
+    modelsEl.innerHTML = (attempts || []).map(item => {
+      const state = item.status || "waiting";
+      const title = item.note ? `${item.label}：${item.note}` : item.label;
+      let prefix = "·";
+      if (state === "ok") prefix = "✓";
+      if (state === "failed") prefix = "✗";
+      if (state === "running") prefix = "…";
+      if (state === "skipped") prefix = "↷";
+      return `<span class="qi-model-pill ${state}" title="${title}">${prefix} ${item.label}</span>`;
+    }).join("");
+  }
+  if (noteEl) noteEl.textContent = note || "";
+}
+
+function setQueuePhases(idx, phases) {
+  const defs = [
+    { key: "scrape", label: "等待中" },
+    { key: "llm", label: "等待中" },
+    { key: "export", label: "等待中" },
+  ];
+  defs.forEach(def => {
+    const el = id(`qi-phase-${idx}-${def.key}`);
+    if (!el) return;
+    const phase = (phases || {})[def.key] || {};
+    const state = phase.state || "waiting";
+    const text = phase.text || def.label;
+    el.className = `qi-phase ${state}`;
+    const stateEl = el.querySelector(".qi-phase-state");
+    if (stateEl) stateEl.textContent = text;
+  });
+}
+
 // ── Last result ────────────────────────────────────────────────────────
-function showLastResult(result, exportOutput) {
+function showLastResult(result, exportOutput, meta = {}) {
   id("last-result").textContent = result;
   id("last-export").textContent = exportOutput;
   id("last-result-wrap").style.display = "flex";
   id("last-result-empty").style.display = "none";
+  S.lastResultMeta = { url: meta.url || "", modelName: meta.modelName || "unknown-model" };
+  S.lastExportMeta = { url: meta.url || "", modelName: meta.modelName || "unknown-model" };
 }
 
 // ── History ────────────────────────────────────────────────────────────
@@ -836,6 +1026,38 @@ function shortUrl(url) {
   catch { return url.slice(0, 50); }
 }
 
+function parseGitlabUrlParts(url) {
+  try {
+    const u = new URL(url);
+    const m = u.pathname.match(/(.+)\/-\/(issues|work_items)\/(\d+)$/);
+    if (!m) return { repoName: "unknown-repo", itemNumber: "unknown" };
+    const repoParts = m[1].split("/").filter(Boolean);
+    let repoName = repoParts[repoParts.length - 1] || "unknown-repo";
+    if (repoName === "gitlab-profile" && repoParts.length >= 2) {
+      repoName = repoParts[repoParts.length - 2];
+    }
+    return { repoName, itemNumber: m[3] };
+  } catch {
+    return { repoName: "unknown-repo", itemNumber: "unknown" };
+  }
+}
+
+function sanitizeFilenamePart(value) {
+  return (value || "unknown")
+    .trim()
+    .replace(/[\/]/g, "-")
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-._]+|[-._]+$/g, "") || "unknown";
+}
+
+function buildDownloadFilename(url, modelName, ext) {
+  const parts = parseGitlabUrlParts(url || "");
+  const date = new Date();
+  const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
+  return `${sanitizeFilenamePart(parts.repoName)}_${sanitizeFilenamePart(parts.itemNumber)}_${sanitizeFilenamePart(modelName)}_${dateStr}.${ext}`;
+}
+
 function copyEl(elId) {
   const el = id(elId);
   const text = el.tagName === "TEXTAREA" ? el.value : el.textContent;
@@ -850,6 +1072,18 @@ function downloadText(elId, filename) {
     download: filename,
   });
   a.click();
+}
+
+function downloadLastResult() {
+  const meta = S.lastResultMeta || {};
+  const filename = buildDownloadFilename(meta.url, meta.modelName, "md");
+  downloadText("last-result", filename);
+}
+
+function downloadLastExport() {
+  const meta = S.lastExportMeta || S.lastResultMeta || {};
+  const filename = buildDownloadFilename(meta.url, meta.modelName, "txt");
+  downloadText("last-export", filename);
 }
 
 // ── Prompt 管理 ────────────────────────────────────────────────────────

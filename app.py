@@ -8,11 +8,11 @@ APP_VERSION = "v1.1.2"
 
 import re
 import time
-import json
-import platform
 import subprocess
 import os
 import shutil
+import signal
+import logging
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
@@ -25,14 +25,23 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
 app = Flask(__name__, static_folder=".")
+logging.basicConfig(
+    level=os.environ.get("APP_LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("gitlab_issue_tool")
 
 # ─── 常數設定 ────────────────────────────────────────────────────────────
 
 GEMINI_CLI      = os.environ.get("GEMINI_CLI_PATH") or "gemini"
 GEMINI_TIMEOUT  = int(os.environ.get("GEMINI_TIMEOUT", "300"))
+GEMINI_PROBE_TIMEOUT = int(os.environ.get("GEMINI_PROBE_TIMEOUT", "12"))
 MAX_INPUT_CHARS = int(os.environ.get("MAX_INPUT_CHARS", "40000"))
 FLASK_HOST      = os.environ.get("FLASK_HOST", "127.0.0.1")
 FLASK_PORT      = int(os.environ.get("FLASK_PORT", "5000"))
+LLM_MODEL_PRIMARY    = os.environ.get("LLM_MODEL_PRIMARY", "gemini-2.5-pro").strip()
+LLM_MODEL_FALLBACK_1 = os.environ.get("LLM_MODEL_FALLBACK_1", "gemma-4-31b-it").strip()
+LLM_MODEL_FALLBACK_2 = os.environ.get("LLM_MODEL_FALLBACK_2", "gemma-4-26b-a4b-it").strip()
 
 # 輸出資料夾（與 app.py 同層）
 OUTPUT_DIR     = Path(os.environ.get("OUTPUT_DIR", "outputs"))
@@ -77,27 +86,79 @@ PROCESS_SYSTEM_PROMPT = """\
 注意：以上六個 ## 標題必須全部出現，順序不變，內容不足時填「無」或「尚未確認」。\
 """
 
+MODEL_CHAIN_SPECS = [
+    {"order": 1, "label": "Gemini 2.5 Pro", "model_id": LLM_MODEL_PRIMARY},
+    {"order": 2, "label": "Gemma 4 31B", "model_id": LLM_MODEL_FALLBACK_1},
+    {"order": 3, "label": "Gemma 4 26B", "model_id": LLM_MODEL_FALLBACK_2},
+]
+
 
 # ─── 存檔工具 ────────────────────────────────────────────────────────────
 
-def _issue_id_from_url(url: str) -> str:
-    """從 GitLab URL 取出 issue 編號，例如 /issues/123 → issue-123"""
-    m = re.search(r"/issues/(\d+)", url)
-    return f"issue-{m.group(1)}" if m else "issue-unknown"
+def _parse_gitlab_url_parts(url: str) -> dict:
+    path = ""
+    try:
+        from urllib.parse import urlparse
+        path = urlparse(url).path or ""
+    except Exception:
+        path = url or ""
+
+    m = re.search(r"(?P<repo_path>.+?)/-/(?P<kind>issues|work_items)/(?P<number>\d+)$", path)
+    if not m:
+        return {
+            "repo_name": "unknown-repo",
+            "item_number": "unknown",
+            "item_kind": "unknown",
+        }
+
+    repo_parts = [part for part in m.group("repo_path").split("/") if part]
+    repo_name = repo_parts[-1] if repo_parts else "unknown-repo"
+    if repo_name == "gitlab-profile" and len(repo_parts) >= 2:
+        repo_name = repo_parts[-2]
+
+    return {
+        "repo_name": repo_name,
+        "item_number": m.group("number"),
+        "item_kind": m.group("kind"),
+    }
 
 
-def save_output(content: str, kind: str, url: str) -> str:
+def _sanitize_filename_part(value: str) -> str:
+    value = (value or "").strip().replace("/", "-").replace("\\", "-")
+    value = re.sub(r"[^\w\.-]+", "-", value, flags=re.UNICODE)
+    value = re.sub(r"-{2,}", "-", value).strip("-._")
+    return value or "unknown"
+
+
+def build_output_filename(url: str, model_name: str = None, kind: str = "result", ext: str = "txt") -> str:
+    parsed = _parse_gitlab_url_parts(url)
+    repo_name = _sanitize_filename_part(parsed["repo_name"])
+    item_number = _sanitize_filename_part(parsed["item_number"])
+    date_str = datetime.now().strftime("%Y%m%d")
+    if kind == "raw":
+        model_part = "raw"
+    else:
+        model_part = _sanitize_filename_part(model_name or "unknown-model")
+    return f"{repo_name}_{item_number}_{model_part}_{date_str}.{ext}"
+
+
+def save_output(content: str, kind: str, url: str, model_name: str = None) -> str:
     """
     將內容寫入對應的子資料夾。
     kind: "raw"    → outputs/raw/
           "result" → outputs/results/
     回傳：寫入的檔案路徑（字串）
     """
-    ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
-    issue_id = _issue_id_from_url(url)
-    filename = f"{kind}_{ts}_{issue_id}.txt"
+    filename = build_output_filename(url, model_name=model_name, kind=kind, ext="txt")
     subdir   = OUTPUT_RAW if kind == "raw" else OUTPUT_RESULTS
     filepath = subdir / filename
+    if filepath.exists():
+        stem = filepath.stem
+        suffix = filepath.suffix
+        counter = 2
+        while filepath.exists():
+            filepath = subdir / f"{stem}_{counter}{suffix}"
+            counter += 1
     filepath.write_text(content, encoding="utf-8")
     return str(filepath)
 
@@ -137,47 +198,236 @@ def _sanitize_text(text: str) -> str:
     return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
 
 
-def call_gemini_cli(system_prompt: str, user_text: str, timeout: int = None) -> str:
+def is_disallowed_model(model_name: str) -> bool:
+    return "flash" in (model_name or "").strip().lower()
+
+
+def get_model_chain() -> list:
+    chain = []
+    for item in MODEL_CHAIN_SPECS:
+        model_id = (item.get("model_id") or "").strip()
+        configured = bool(model_id)
+        disallowed = is_disallowed_model(model_id)
+        if not configured:
+            reason = "unconfigured"
+        elif disallowed:
+            reason = "flash_not_allowed"
+        else:
+            reason = "ok"
+        chain.append({
+            "order": item["order"],
+            "label": item["label"],
+            "model_id": model_id,
+            "configured": configured,
+            "allowed": configured and not disallowed,
+            "reason": reason,
+        })
+    return chain
+
+
+def _resolve_gemini_executable() -> str:
+    return shutil.which(GEMINI_CLI) or GEMINI_CLI
+
+
+def _build_gemini_command(extra_args=None) -> list:
+    extra_args = extra_args or []
+    cli_path = _resolve_gemini_executable()
+    if os.name == "nt" and str(cli_path).lower().endswith((".cmd", ".bat")):
+        return ["cmd", "/c", cli_path, *extra_args]
+    return [cli_path, *extra_args]
+
+
+def _terminate_process_tree(process: subprocess.Popen) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        try:
+            process.kill()
+        except Exception:
+            pass
+        subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=2,
+        )
+    else:
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+        except ProcessLookupError:
+            return
+
+
+def _run_command_with_timeout(command: list, timeout: int, input_text: str = None) -> subprocess.CompletedProcess:
+    popen_kwargs = {
+        "stdin": subprocess.PIPE if input_text is not None else None,
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "text": True,
+        "encoding": "utf-8",
+    }
+    if os.name == "nt":
+        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        popen_kwargs["start_new_session"] = True
+
+    process = subprocess.Popen(command, **popen_kwargs)
+    logger.info("run_command start timeout=%ss command=%s", timeout, command)
+    try:
+        stdout, stderr = process.communicate(input=input_text, timeout=timeout)
+        logger.info("run_command done returncode=%s stdout_len=%s stderr_len=%s", process.returncode, len(stdout or ""), len(stderr or ""))
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=process.returncode,
+            stdout=stdout,
+            stderr=stderr,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        logger.warning("run_command timeout timeout=%ss pid=%s stdout_len=%s stderr_len=%s", timeout, getattr(process, "pid", None), len(stdout), len(stderr))
+        try:
+            _terminate_process_tree(process)
+        except Exception:
+            logger.exception("run_command timeout terminate_process_tree failed")
+            pass
+        raise subprocess.TimeoutExpired(
+            cmd=command,
+            timeout=timeout,
+            output=stdout,
+            stderr=stderr,
+        )
+
+
+def call_gemini_cli(system_prompt: str, user_text: str, timeout: int = None, model_name: str = None) -> str:
     system_prompt = _sanitize_text(system_prompt)
     user_text     = _sanitize_text(user_text)
     effective_timeout = timeout if (timeout and timeout > 0) else GEMINI_TIMEOUT
+    selected_model = (model_name or "").strip()
+
+    if selected_model and is_disallowed_model(selected_model):
+        raise RuntimeError("不接受 Flash 模型，請改用 Gemini 2.5 Pro 或指定的 Gemma 4 模型")
 
     if len(user_text) > MAX_INPUT_CHARS:
         user_text = user_text[:MAX_INPUT_CHARS] + "\n\n[... 內容過長，已截斷 ...]"
 
     full_prompt = f"{system_prompt}\n\n---\n\n{user_text}"
+    extra_args = ["--model", selected_model] if selected_model else []
+    logger.info("llm_call start model=%s timeout=%ss prompt_len=%s user_text_len=%s", selected_model or "<default>", effective_timeout, len(system_prompt), len(user_text))
 
     try:
-        result = subprocess.run(
-            [GEMINI_CLI],
-            input=full_prompt,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
+        result = _run_command_with_timeout(
+            _build_gemini_command(extra_args),
             timeout=effective_timeout,
+            input_text=full_prompt,
         )
 
         if result.returncode != 0:
             stderr = result.stderr.strip() or "（無 stderr 輸出）"
+            logger.error("llm_call nonzero_exit model=%s returncode=%s stderr=%s", selected_model or "<default>", result.returncode, stderr[:500])
             raise RuntimeError(f"Gemini CLI 回傳錯誤碼 {result.returncode}：{stderr}")
 
         output = result.stdout.strip()
         if not output:
+            logger.error("llm_call empty_output model=%s", selected_model or "<default>")
             raise RuntimeError("Gemini CLI 無輸出，請確認 CLI 已正確安裝並完成授權")
 
+        logger.info("llm_call success model=%s output_len=%s", selected_model or "<default>", len(output))
         return output
 
     except subprocess.TimeoutExpired:
+        logger.warning("llm_call timeout model=%s timeout=%ss", selected_model or "<default>", effective_timeout)
         raise RuntimeError(
             f"Gemini CLI 執行超時（>{effective_timeout}s），"
             "請縮短輸入長度或在連線設定調整逾時秒數"
         )
     except FileNotFoundError:
+        logger.exception("llm_call cli_not_found cli=%s", GEMINI_CLI)
         raise RuntimeError(
             f"找不到 Gemini CLI 執行檔（{GEMINI_CLI!r}），"
             "請先安裝：npm install -g @google/gemini-cli，"
             "或設定 GEMINI_CLI_PATH 環境變數指向正確路徑"
         )
+
+
+def probe_gemini_model(model_name: str, timeout: int = None) -> dict:
+    effective_timeout = timeout if (timeout and timeout > 0) else GEMINI_PROBE_TIMEOUT
+    prompt = "Please reply with OK only."
+    logger.info("probe_model start model=%s timeout=%ss", model_name, effective_timeout)
+    if is_disallowed_model(model_name):
+        logger.warning("probe_model flash_not_allowed model=%s", model_name)
+        return {
+            "model": model_name,
+            "ok": False,
+            "status": "flash_not_allowed",
+            "returncode": None,
+            "stdout": "",
+            "stderr": "Flash 模型不在允許清單內",
+            "timeout": effective_timeout,
+        }
+    cmd = _build_gemini_command(["--model", model_name, "--prompt", prompt])
+
+    try:
+        result = _run_command_with_timeout(
+            cmd,
+            timeout=effective_timeout,
+        )
+        stdout = (result.stdout or "").strip()
+        stderr = (result.stderr or "").strip()
+        if result.returncode != 0:
+            logger.warning("probe_model nonzero_exit model=%s returncode=%s stderr=%s", model_name, result.returncode, stderr[:500])
+            return {
+                "model": model_name,
+                "ok": False,
+                "status": "nonzero_exit",
+                "returncode": result.returncode,
+                "stdout": stdout[:200],
+                "stderr": stderr[:500],
+                "timeout": effective_timeout,
+            }
+        if not stdout:
+            logger.warning("probe_model empty_output model=%s", model_name)
+            return {
+                "model": model_name,
+                "ok": False,
+                "status": "empty_output",
+                "returncode": result.returncode,
+                "stdout": "",
+                "stderr": stderr[:500],
+                "timeout": effective_timeout,
+            }
+        logger.info("probe_model success model=%s stdout=%s", model_name, stdout[:120])
+        return {
+            "model": model_name,
+            "ok": True,
+            "status": "ok",
+            "returncode": result.returncode,
+            "stdout": stdout[:200],
+            "stderr": stderr[:200],
+            "timeout": effective_timeout,
+        }
+    except subprocess.TimeoutExpired:
+        logger.warning("probe_model timeout model=%s timeout=%ss", model_name, effective_timeout)
+        return {
+            "model": model_name,
+            "ok": False,
+            "status": "timeout",
+            "returncode": None,
+            "stdout": "",
+            "stderr": f"probe timeout after {effective_timeout}s",
+            "timeout": effective_timeout,
+        }
+    except FileNotFoundError:
+        logger.exception("probe_model cli_not_found cli=%s model=%s", GEMINI_CLI, model_name)
+        return {
+            "model": model_name,
+            "ok": False,
+            "status": "cli_not_found",
+            "returncode": None,
+            "stdout": "",
+            "stderr": f"CLI not found: {GEMINI_CLI}",
+            "timeout": effective_timeout,
+        }
 
 
 # ─── Selenium 工具 ───────────────────────────────────────────────────────
@@ -679,6 +929,8 @@ def api_process():
     raw_text      = (body.get("raw_text")      or "").strip()
     system_prompt = (body.get("system_prompt") or "").strip()
     url           = (body.get("url")           or "").strip()
+    model_name    = (body.get("model_name")    or "").strip()
+    model_label   = (body.get("model_label")   or "").strip()
     timeout       = body.get("timeout")
     if timeout is not None:
         try:
@@ -688,22 +940,39 @@ def api_process():
 
     if not raw_text:
         return jsonify({"error": "raw_text 不可為空"}), 400
+    if model_name and is_disallowed_model(model_name):
+        logger.warning("api_process rejected_flash model=%s url=%s", model_name, url)
+        return jsonify({"error": "不接受 Flash 模型"}), 400
 
     try:
+        logger.info("api_process start model=%s model_label=%s timeout=%s raw_text_len=%s url=%s", model_name or "<default>", model_label or "", timeout if timeout is not None else GEMINI_TIMEOUT, len(raw_text), url or "")
         # 需求 3：使用強制結構的 prompt（若使用者有自訂則合併）
         effective_prompt = system_prompt or PROCESS_SYSTEM_PROMPT
-        result = call_gemini_cli(effective_prompt, raw_text, timeout=timeout)
+        result = call_gemini_cli(
+            effective_prompt,
+            raw_text,
+            timeout=timeout,
+            model_name=model_name or None,
+        )
 
         # 需求 3：確保六個區塊都存在
         result = enforce_structure(result)
 
         # 需求 2：自動存 LLM 整理結果
-        saved_result = save_output(result, "result", url) if url else None
+        saved_result = save_output(result, "result", url, model_name=model_name) if url else None
+        logger.info("api_process success model=%s saved_result=%s url=%s", model_name or "<default>", saved_result or "", url or "")
 
-        return jsonify({"result": result, "saved_result": saved_result})
+        return jsonify({
+            "result": result,
+            "saved_result": saved_result,
+            "used_model": model_name or None,
+            "used_model_label": model_label or None,
+        })
     except RuntimeError as e:
+        logger.error("api_process runtime_error model=%s url=%s error=%s", model_name or "<default>", url or "", str(e))
         return jsonify({"error": str(e)}), 500
     except Exception as e:
+        logger.exception("api_process unexpected_error model=%s url=%s", model_name or "<default>", url or "")
         return jsonify({"error": f"未知錯誤：{e}"}), 500
 
 
@@ -1288,116 +1557,6 @@ def api_batch_export_excel():
     })
 
 
-# ── Gemini 模型檢查 ──
-IS_WINDOWS = platform.system() == "Windows"
-
-def _run_gemini_cmd(args, timeout=5):
-    """
-    Safely run Gemini CLI command, handles Windows .cmd files.
-    Returns (stdout, stderr, returncode) or (None, error_str, -1)
-    """
-    try:
-        cmd = [GEMINI_CLI] + args
-        if IS_WINDOWS and GEMINI_CLI.endswith((".cmd", ".bat")):
-            # Windows .cmd needs cmd.exe, use list form to avoid shell injection
-            cmd = ["cmd", "/c", GEMINI_CLI] + args
-
-        result = subprocess.run(
-            cmd, capture_output=True, text=True,
-            timeout=timeout, encoding="utf-8", errors="replace"
-        )
-        return result.stdout, result.stderr, result.returncode
-    except subprocess.TimeoutExpired:
-        return None, "timeout", -1
-    except FileNotFoundError:
-        return None, "not_found", -1
-    except Exception as e:
-        return None, str(e), -1
-
-def get_gemini_model_info():
-    """
-    多策略獲取 Gemini CLI 版本與模型信息
-    策略 1: gemini --version
-    策略 2: 解析 npm package.json（從 CLI 路徑往上找）
-    策略 3: 讀取 Gemini 配置文件（settings.json）
-    返回: (model_name_or_None, display_string)
-    """
-    cli_version = None
-    model_from_config = None
-
-    # ── 策略 1：執行 gemini --version ──────────────────────────
-    stdout, stderr, rc = _run_gemini_cmd(["--version"])
-    if stdout is not None:
-        combined = (stdout + stderr).strip()
-        # 嘗試提取 semver 格式的版本號
-        m = re.search(r'(\d+\.\d+\.\d+)', combined)
-        if m:
-            cli_version = m.group(1)
-        # 檢查輸出中是否直接含有模型名稱
-        for model_id in ["gemini-2.0-flash-exp", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]:
-            if model_id in combined.lower():
-                return (model_id, f"CLI v{cli_version or '?'} · 由版本輸出識別")
-
-    # ── 策略 2：從 npm 安裝目錄讀取 package.json ───────────────
-    if not cli_version and GEMINI_CLI:
-        bin_dir = os.path.dirname(os.path.abspath(GEMINI_CLI))
-        candidate_paths = [
-            os.path.join(bin_dir, "node_modules", "@google", "gemini-cli", "package.json"),
-            os.path.join(bin_dir, "node_modules", "@google", "generative-ai", "package.json"),
-            # npm 全域安裝路徑（往上一層 node_modules）
-            os.path.join(bin_dir, "..", "lib", "node_modules", "@google", "gemini-cli", "package.json"),
-        ]
-        for pkg_path in candidate_paths:
-            try:
-                if os.path.isfile(pkg_path):
-                    with open(pkg_path, "r", encoding="utf-8") as f:
-                        pkg = json.load(f)
-                    cli_version = pkg.get("version", "")
-                    # 有些 package.json 直接記錄預設模型
-                    model_from_config = (pkg.get("config") or {}).get("model")
-                    break
-            except Exception:
-                continue
-
-    # ── 策略 3：讀取 Gemini CLI 配置文件 ───────────────────────
-    if not model_from_config:
-        home = Path.home()
-        config_candidates = [
-            home / ".config" / "gemini" / "settings.json",
-            home / ".gemini" / "settings.json",
-            home / "AppData" / "Roaming" / "gemini" / "settings.json",
-        ]
-        for cfg in config_candidates:
-            try:
-                if cfg.is_file():
-                    with open(cfg, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    model_from_config = data.get("model") or data.get("defaultModel")
-                    if model_from_config:
-                        break
-            except Exception:
-                continue
-
-    # ── 整合結果 ────────────────────────────────────────────────
-    ver_str = f"CLI v{cli_version}" if cli_version else "CLI 版本未知"
-
-    if model_from_config:
-        return (model_from_config, f"{ver_str} · 來源：配置文件")
-
-    if cli_version:
-        # 根據版本號推斷（Gemini CLI ≥ 0.1 預設 gemini-2.0-flash 系列）
-        parts = cli_version.split(".")
-        try:
-            major, minor = int(parts[0]), int(parts[1])
-            if major >= 1 or (major == 0 and minor >= 1):
-                return ("gemini-2.0-flash（推斷）", f"{ver_str} · 依版本推斷，方案 A 保持現狀")
-        except (ValueError, IndexError):
-            pass
-        return (None, f"{ver_str} · 模型由 CLI 自動決定")
-
-    # 完全無法確定
-    return (None, "CLI 可用，但無法取得版本/模型資訊（模型由 CLI 自動決定）")
-
 # ── Prompt 模板管理 ──────────────────────────────────────────────────────
 
 @app.route("/api/prompts", methods=["GET"])
@@ -1468,24 +1627,48 @@ def api_delete_prompt(filename):
 # ── 健康檢查 ──
 @app.route("/api/health", methods=["GET"])
 def api_health():
-    cli_path  = shutil.which(GEMINI_CLI) or GEMINI_CLI
+    cli_path  = _resolve_gemini_executable()
     available = os.path.isfile(cli_path) or bool(shutil.which(GEMINI_CLI))
-
-    # 獲取模型信息
-    model_name, model_info = get_gemini_model_info() if available else (None, "Gemini CLI 未找到")
 
     return jsonify({
         "gemini_cli":      GEMINI_CLI,
         "cli_found":       available,
         "cli_path":        str(cli_path),
         "timeout":         GEMINI_TIMEOUT,
-        "model_name":      model_name or "未確定",
-        "model_info":      model_info,
         "max_input_chars":    MAX_INPUT_CHARS,
         "output_dir":         str(OUTPUT_DIR.resolve()),
         "output_dir_raw":     str(OUTPUT_RAW.resolve()),
         "output_dir_results": str(OUTPUT_RESULTS.resolve()),
         "output_dir_excel":   str(OUTPUT_EXCEL.resolve()),
+        "model_chain":        get_model_chain(),
+    })
+
+
+@app.route("/api/probe_models", methods=["POST"])
+def api_probe_models():
+    body = request.get_json(force=True) or {}
+    models = body.get("models") or []
+    timeout = body.get("timeout")
+
+    if not isinstance(models, list) or not models:
+        return jsonify({"error": "models 必須為非空陣列"}), 400
+
+    cleaned_models = []
+    for model in models:
+        name = str(model).strip()
+        if name:
+            cleaned_models.append(name)
+
+    if not cleaned_models:
+        return jsonify({"error": "models 必須包含至少一個有效模型名稱"}), 400
+
+    logger.info("api_probe_models start models=%s timeout=%s", cleaned_models, timeout if timeout else GEMINI_PROBE_TIMEOUT)
+    results = [probe_gemini_model(model_name, timeout=timeout) for model_name in cleaned_models]
+    logger.info("api_probe_models done results=%s", [{k: r.get(k) for k in ("model", "ok", "status", "returncode")} for r in results])
+    return jsonify({
+        "cli_path": str(_resolve_gemini_executable()),
+        "probe_timeout": timeout if (timeout and timeout > 0) else GEMINI_PROBE_TIMEOUT,
+        "results": results,
     })
 
 
