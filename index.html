@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GitLab Issue 整理工具 v1.1.2</title>
+<title>GitLab Issue 整理工具 v1.2.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -15,51 +15,87 @@
   --green: #3dd68c; --amber: #f0a500; --red: #e05c5c; --blue: #4a9eff;
   --text: #d4d4e0; --text-dim: #6e6e88; --text-bright: #f0f0fa;
   --mono: 'IBM Plex Mono', monospace; --sans: 'Noto Sans TC', sans-serif;
+  --font-size-base: 14px; --font-size-result: 16px; --font-size-status: 12px; --font-size-tag: 11px;
   --radius: 8px; --tr: 0.18s cubic-bezier(0.4,0,0.2,1);
 }
+:root[data-theme="light"] {
+  --bg: #f5f7fb; --bg2: #ffffff; --bg3: #eef2f8;
+  --border: #d7deea; --border-hi: #b8c4d8;
+  --accent: #4057d8; --accent-dim: #9aa8ee; --accent-glow: rgba(64,87,216,0.1);
+  --green: #0f8f5f; --amber: #b86e00; --red: #c93f4a; --blue: #1d6fd6;
+  --text: #252b37; --text-dim: #687386; --text-bright: #111827;
+}
 html { scroll-behavior: smooth; }
-body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: var(--font-size-base); line-height: 1.6; min-height: 100vh; }
 
 /* ── Header ── */
 header {
-  border-bottom: 1px solid var(--border); padding: 16px 36px;
-  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border); padding: 14px 18px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   background: var(--bg); position: sticky; top: 0; z-index: 100;
 }
 .logo { width: 30px; height: 30px; background: var(--accent); border-radius: 6px; display: grid; place-items: center; font-family: var(--mono); font-size: 12px; color: #fff; font-weight: 500; flex-shrink: 0; }
-header h1 { font-size: 14px; font-weight: 500; color: var(--text-bright); }
-header .sub { font-size: 11px; color: var(--text-dim); margin-left: auto; font-family: var(--mono); }
+header h1 { font-size: var(--font-size-base); font-weight: 500; color: var(--text-bright); }
+header .sub { font-size: var(--font-size-tag); color: var(--text-dim); margin-left: auto; font-family: var(--mono); }
+.font-control { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: var(--font-size-tag); color: var(--text-dim); }
+.font-segment { display: inline-grid; grid-template-columns: repeat(4, 32px); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg2); }
+.font-segment button { min-width: 0; justify-content: center; border-radius: 0; border-right: 1px solid var(--border); background: transparent; color: var(--text-dim); font-family: var(--mono); font-size: var(--font-size-tag); padding: 5px 0; }
+.font-segment button:last-child { border-right: 0; }
+.font-segment button.active { background: var(--accent); color: #fff; }
+.theme-toggle { border: 1px solid var(--border); background: var(--bg2); color: var(--text); padding: 5px 10px; font-family: var(--mono); font-size: var(--font-size-tag); }
 
 /* ── Layout ── */
-.layout { display: grid; grid-template-columns: 1fr 340px; gap: 0; min-height: calc(100vh - 57px); }
-.main-col { padding: 28px 28px 80px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); }
-.side-col { padding: 20px 20px 40px; display: flex; flex-direction: column; gap: 16px; }
+.workspace-frame { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 0; min-height: calc(100vh - 59px); }
+.sidebar { position: sticky; top: 59px; height: calc(100vh - 59px); border-right: 1px solid var(--border); background: var(--bg2); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.sidebar-title { font-size: var(--font-size-tag); font-family: var(--mono); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; }
+.sidebar-status { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; font-family: var(--mono); font-size: var(--font-size-tag); color: var(--text-dim); line-height: 1.55; }
+.nav-links { display: flex; flex-direction: column; gap: 6px; }
+.nav-link { width: 100%; justify-content: flex-start; background: transparent; border: 1px solid transparent; color: var(--text-dim); padding: 8px 10px; }
+.nav-link:hover, .nav-link.active { border-color: var(--accent-dim); background: var(--accent-glow); color: var(--text-bright); }
+.sidebar-tools { display: flex; flex-direction: column; gap: 6px; }
+.sidebar-tools button { width: 100%; justify-content: flex-start; }
+.sidebar-spacer { flex: 1; }
+.layout { display: flex; flex-direction: column; gap: 18px; padding: 20px; min-width: 0; }
+.main-col { display: contents; }
+#step1, #step2, #step3 { scroll-margin-top: 80px; }
+.history-panel { background: transparent; border: 0; border-radius: 0; padding: 0; min-width: 0; }
+body:not(.workspace-ready) header,
+body:not(.workspace-ready) .sidebar,
+body:not(.workspace-ready) #step1,
+body:not(.workspace-ready) #step2,
+body:not(.workspace-ready) #step3 { display: none; }
+body:not(.workspace-ready) .workspace-frame { display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 24px; }
+body:not(.workspace-ready) .layout { width: min(760px, 100%); padding: 0; }
+body:not(.workspace-ready) #step-config { box-shadow: 0 18px 80px rgba(0,0,0,0.24); }
+body.workspace-ready #step-config { display: none; }
 
 /* ── Step card ── */
 .step { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg2); overflow: hidden; transition: border-color var(--tr); }
 .step.active { border-color: var(--accent-dim); }
 .step.done   { border-color: var(--border-hi); }
-.step-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; }
-.step-num { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border-hi); display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--text-dim); flex-shrink: 0; transition: all var(--tr); }
+.step-header { display: flex; align-items: center; gap: 10px; padding: 13px 16px; }
+.step-num { width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border-hi); display: grid; place-items: center; font-family: var(--mono); font-size: 10px; color: var(--text-dim); flex-shrink: 0; transition: all var(--tr); }
 .step.active .step-num { border-color: var(--accent); background: var(--accent); color: #fff; }
 .step.done .step-num { border-color: var(--green); background: var(--green); color: #000; font-size: 13px; }
 .step.done .step-num-inner { display: none; }
 .step.done .step-num::after { content: "✓"; }
-.step-title { font-size: 13px; font-weight: 500; color: var(--text-bright); }
-.step-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
-.step-badge { margin-left: auto; font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--bg3); color: var(--text-dim); border: 1px solid var(--border); white-space: nowrap; }
+.step-title { font-size: calc(var(--font-size-base) - 1px); font-weight: 500; color: var(--text-bright); }
+.step-sub { font-size: var(--font-size-tag); color: var(--text-dim); margin-top: 1px; }
+.step-badge { margin-left: auto; font-family: var(--mono); font-size: var(--font-size-tag); padding: 2px 8px; border-radius: 4px; background: var(--bg3); color: var(--text-dim); border: 1px solid var(--border); white-space: nowrap; }
+#step2 .step-header, #step3 .step-header { align-items: flex-start; }
+#step2 .step-sub::after { content: "｜點選卡片查看結果，可直接操作單筆流程"; color: var(--blue); }
 .step.done .step-badge { color: var(--green); border-color: rgba(61,214,140,0.3); }
-.step-body { padding: 0 20px 20px; display: none; flex-direction: column; gap: 14px; }
-.step.active .step-body, .step.done .step-body { display: flex; }
-.step-divider { height: 1px; background: var(--border); margin: 0 20px; }
-.connector { display: flex; justify-content: center; padding: 5px 0; color: var(--border-hi); font-size: 16px; user-select: none; }
+.step-body { padding: 0 16px 16px; display: none; flex-direction: column; gap: 12px; }
+.step.active .step-body, .step.done .step-body, .layout .step .step-body { display: flex; }
+.step-divider { height: 1px; background: var(--border); margin: 0 16px; }
+.connector { display: none; }
 
 /* ── Form ── */
 .field { display: flex; flex-direction: column; gap: 5px; }
-label { font-size: 11px; font-family: var(--mono); color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; }
+label { font-size: var(--font-size-tag); font-family: var(--mono); color: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; }
 input[type=text], input[type=password], input[type=url], textarea {
   background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
-  color: var(--text); font-family: var(--mono); font-size: 12.5px; padding: 9px 12px;
+  color: var(--text); font-family: var(--mono); font-size: calc(var(--font-size-base) - 1px); padding: 9px 12px;
   transition: border-color var(--tr); width: 100%; resize: vertical;
 }
 input:focus, textarea:focus { outline: none; border-color: var(--accent); background: #1a1a22; }
@@ -68,7 +104,7 @@ input::placeholder, textarea::placeholder { color: var(--text-dim); }
 
 /* ── Buttons ── */
 .btn-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-button { font-family: var(--sans); font-size: 13px; border: none; border-radius: var(--radius); cursor: pointer; padding: 8px 18px; transition: all var(--tr); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+button { font-family: var(--sans); font-size: calc(var(--font-size-base) - 1px); border: none; border-radius: var(--radius); cursor: pointer; padding: 8px 18px; transition: all var(--tr); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: #6b7cf5; transform: translateY(-1px); }
 .btn-primary:active { transform: translateY(0); }
@@ -80,10 +116,10 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 .btn-excel:hover { background: #23a052; transform: translateY(-1px); }
 .btn-excel:active { transform: translateY(0); }
 .btn-excel:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-.btn-sm { padding: 5px 10px; font-size: 11px; }
+.btn-sm { padding: 5px 10px; font-size: var(--font-size-tag); }
 
 /* ── Status ── */
-.status { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11.5px; padding: 8px 12px; border-radius: var(--radius); border: 1px solid transparent; }
+.status { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: var(--font-size-status); padding: 8px 12px; border-radius: var(--radius); border: 1px solid transparent; }
 .status.info    { background: rgba(91,106,240,0.1); border-color: var(--accent-dim); color: #8896f8; }
 .status.success { background: rgba(61,214,140,0.08); border-color: rgba(61,214,140,0.3); color: var(--green); }
 .status.error   { background: rgba(224,92,92,0.1); border-color: rgba(224,92,92,0.3); color: var(--red); }
@@ -96,49 +132,78 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 
 /* ── Output area ── */
 .out-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.out-label { font-size: 11px; font-family: var(--mono); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; }
-.out-area { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--mono); font-size: 12px; line-height: 1.7; color: var(--text); padding: 12px 14px; min-height: 120px; white-space: pre-wrap; word-break: break-word; resize: vertical; width: 100%; }
-.final-out { background: #0d1117; border: 1px solid rgba(91,106,240,0.35); border-radius: var(--radius); font-family: var(--mono); font-size: 12px; line-height: 1.75; color: #c9d1d9; padding: 16px; white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow-y: auto; min-height: 60px; }
+.out-label { font-size: var(--font-size-tag); font-family: var(--mono); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; }
+.out-area { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--mono); font-size: var(--font-size-status); line-height: 1.7; color: var(--text); padding: 12px 14px; min-height: 120px; white-space: pre-wrap; word-break: break-word; resize: vertical; width: 100%; }
+.final-out { background: #0d1117; border: 1px solid rgba(91,106,240,0.35); border-radius: var(--radius); font-family: var(--mono); font-size: var(--font-size-status); line-height: 1.75; color: #c9d1d9; padding: 16px; white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto; min-height: 60px; }
+#step3 .step-body { gap: 14px; }
+#last-result-wrap { display: none; grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr); gap: 14px; }
+.result-pane, .export-pane { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.result-sections { display: flex; flex-direction: column; gap: 12px; background: transparent; border: 0; padding: 0; max-height: 50vh; overflow-y: auto; white-space: normal; }
+.result-card { background: #11151c; border: 1px solid rgba(91,106,240,0.26); border-radius: var(--radius); padding: 14px 16px; }
+.result-card.empty { border-style: dashed; opacity: 0.72; }
+.result-card-title { color: var(--text-bright); font-size: var(--font-size-result); font-weight: 500; margin-bottom: 8px; line-height: 1.35; }
+.result-card-body { color: #d7dce8; font-family: var(--sans); font-size: var(--font-size-result); line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+.result-card.empty .result-card-body { color: var(--text-dim); font-size: var(--font-size-base); }
+.result-fallback { font-family: var(--mono); font-size: var(--font-size-result); line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
 
 /* ── Queue list ── */
-.queue-list { display: flex; flex-direction: column; gap: 6px; }
-.queue-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; transition: border-color var(--tr); }
+.queue-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; max-height: 34vh; overflow-y: auto; padding-right: 2px; }
+.queue-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; transition: border-color var(--tr), background var(--tr); cursor: pointer; }
+.queue-item:hover { border-color: var(--accent-dim); background: rgba(91,106,240,0.08); }
 .queue-item.running { border-color: var(--accent-dim); background: var(--accent-glow); }
 .queue-item.done    { border-color: rgba(61,214,140,0.3); }
 .queue-item.error   { border-color: rgba(224,92,92,0.3); }
 .queue-item.waiting { opacity: 0.6; }
-.qi-url  { font-family: var(--mono); font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.qi-status { font-size: 11px; display: flex; align-items: center; gap: 5px; }
+.qi-url  { font-family: var(--mono); font-size: var(--font-size-status); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qi-status { font-size: var(--font-size-status); display: flex; align-items: center; gap: 5px; }
 .qi-status .icon { font-size: 13px; line-height: 1; }
-.qi-phases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
-.qi-phase { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; background: rgba(110,110,136,0.06); min-width: 0; }
-.qi-phase-name { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; }
-.qi-phase-state { font-size: 10px; color: var(--text); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qi-phases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 0; }
+.qi-phase { border: 1px solid var(--border); border-radius: 6px; padding: 5px 6px; background: rgba(110,110,136,0.06); min-width: 0; }
+.qi-phase-name { font-family: var(--mono); font-size: var(--font-size-tag); color: var(--text-dim); text-transform: uppercase; }
+.qi-phase-state { font-size: var(--font-size-tag); color: var(--text); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qi-phase.waiting { opacity: 0.7; }
 .qi-phase.running { border-color: rgba(74,158,255,0.35); background: rgba(74,158,255,0.08); }
 .qi-phase.done { border-color: rgba(61,214,140,0.35); background: rgba(61,214,140,0.08); }
 .qi-phase.error { border-color: rgba(224,92,92,0.35); background: rgba(224,92,92,0.08); }
+.qi-phase.skipped { border-color: rgba(240,165,0,0.35); background: rgba(240,165,0,0.08); }
 .qi-models { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-.qi-model-pill { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); background: rgba(110,110,136,0.08); }
+.qi-model-pill { font-family: var(--mono); font-size: var(--font-size-tag); padding: 2px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); background: rgba(110,110,136,0.08); }
 .qi-model-pill.running { border-color: rgba(74,158,255,0.35); color: var(--blue); background: rgba(74,158,255,0.08); }
 .qi-model-pill.ok { border-color: rgba(61,214,140,0.35); color: var(--green); background: rgba(61,214,140,0.08); }
 .qi-model-pill.failed { border-color: rgba(224,92,92,0.35); color: var(--red); background: rgba(224,92,92,0.08); }
 .qi-model-pill.skipped { border-color: rgba(240,165,0,0.35); color: var(--amber); background: rgba(240,165,0,0.08); }
-.qi-model-note { font-family: var(--mono); font-size: 10px; color: var(--text-dim); line-height: 1.5; white-space: pre-wrap; }
-.qi-files { font-family: var(--mono); font-size: 10px; color: var(--text-dim); display: flex; flex-direction: column; gap: 2px; }
+.qi-model-note { font-family: var(--mono); font-size: var(--font-size-tag); color: var(--text-dim); line-height: 1.5; white-space: pre-wrap; }
+.qi-files { font-family: var(--mono); font-size: var(--font-size-tag); color: var(--text-dim); display: flex; flex-direction: column; gap: 2px; }
 .qi-files span { cursor: pointer; color: var(--blue); }
 .qi-files span:hover { text-decoration: underline; }
+.qi-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px; }
+.qi-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.qi-actions { display: grid; grid-template-columns: repeat(3, auto); gap: 5px; justify-content: end; flex-shrink: 0; }
+.qi-actions button { padding: 4px 7px; font-size: var(--font-size-tag); min-height: 26px; background: rgba(91,106,240,0.08); border-color: rgba(91,106,240,0.28); color: #aeb7ff; }
+.qi-actions button:hover { background: rgba(91,106,240,0.16); border-color: rgba(91,106,240,0.45); color: var(--text-bright); }
+.qi-actions button:disabled { background: transparent; border-color: var(--border); color: var(--text-dim); }
+.queue-item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(91,106,240,0.25); }
+.qi-title { font-size: var(--font-size-base); color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qi-error { font-family: var(--mono); font-size: var(--font-size-tag); color: var(--red); white-space: pre-wrap; }
 
 /* ── History panel ── */
-.panel-title { font-size: 11px; font-family: var(--mono); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-.history-list { display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 260px); overflow-y: auto; }
+.panel-title { font-size: var(--font-size-tag); font-family: var(--mono); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.history-list { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
 .hist-item { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; transition: all var(--tr); }
 .hist-item:hover { border-color: var(--accent-dim); background: var(--accent-glow); }
-.hist-name { font-family: var(--mono); font-size: 11px; color: var(--text); }
-.hist-meta { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
-.hist-kind { font-size: 10px; padding: 1px 5px; border-radius: 3px; font-family: var(--mono); }
+.hist-name { font-family: var(--mono); font-size: var(--font-size-status); color: var(--text); }
+.hist-meta { font-size: var(--font-size-tag); color: var(--text-dim); margin-top: 2px; }
+.hist-kind { font-size: var(--font-size-tag); padding: 1px 5px; border-radius: 3px; font-family: var(--mono); }
 .hist-kind.raw    { background: rgba(240,165,0,0.12); color: var(--amber); }
 .hist-kind.result { background: rgba(61,214,140,0.1); color: var(--green); }
+.hist-kind.excel { background: rgba(74,158,255,0.1); color: var(--blue); }
+.history-tools { display: grid; grid-template-columns: 1fr 120px; gap: 8px; margin: 10px 0 8px; }
+.history-tools input, .history-tools select, .prompt-preview-actions input {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-family: var(--mono); font-size: var(--font-size-status); padding: 7px 9px;
+}
+.history-tools input:focus, .history-tools select:focus, .prompt-preview-actions input:focus { outline: none; border-color: var(--accent); }
+.modal-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 /* ── File viewer modal ── */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: none; align-items: center; justify-content: center; padding: 40px; }
@@ -150,9 +215,23 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 .modal-close:hover { color: var(--text); }
 .modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
 .modal-content { font-family: var(--mono); font-size: 12px; line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.tool-panel-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 190; display: none; align-items: stretch; justify-content: flex-start; padding-left: 236px; }
+.tool-panel-backdrop.open { display: flex; }
+.tool-panel-shell { width: min(720px, calc(100vw - 268px)); min-width: 420px; background: var(--bg2); border-right: 1px solid var(--border-hi); box-shadow: 18px 0 70px rgba(0,0,0,0.28); display: flex; flex-direction: column; }
+.tool-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.tool-panel-title { font-size: 13px; font-weight: 500; color: var(--text-bright); }
+.tool-panel-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tool-panel-tabs button.active { border-color: var(--accent-dim); background: var(--accent-glow); color: var(--text-bright); }
+.tool-panel-content { padding: 16px; overflow-y: auto; flex: 1; min-width: 0; }
+.tool-panel-content .history-panel,
+.tool-panel-content .prompt-preview { display: none; }
+.tool-panel-content[data-active-panel="history"] .history-panel { display: block; }
+.tool-panel-content[data-active-panel="prompt"] .prompt-preview { display: flex; }
+.tool-panel-content .history-list { max-height: calc(100vh - 210px); }
+.tool-panel-content .prompt-preview textarea { min-height: calc(100vh - 330px); max-height: none; }
 
 /* ── Hint ── */
-.hint { font-size: 11px; color: var(--text-dim); background: var(--bg3); border-left: 3px solid var(--accent-dim); padding: 7px 10px; border-radius: 0 4px 4px 0; font-family: var(--mono); line-height: 1.5; }
+.hint { font-size: var(--font-size-tag); color: var(--text-dim); background: var(--bg3); border-left: 3px solid var(--accent-dim); padding: 7px 10px; border-radius: 0 4px 4px 0; font-family: var(--mono); line-height: 1.5; }
 
 /* ── Prompt modal ── */
 .pm-box { background: var(--bg2); border: 1px solid var(--border-hi); border-radius: 10px; width: 100%; max-width: 580px; display: flex; flex-direction: column; }
@@ -166,6 +245,39 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 .prompt-toolbar select { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 5px 8px; flex: 1; min-width: 0; cursor: pointer; }
 .prompt-toolbar select:focus { outline: none; border-color: var(--accent); }
 .prompt-count { font-size: 10px; color: var(--text-dim); font-family: var(--mono); flex-shrink: 0; }
+.prompt-preview { background: transparent; border: 0; border-radius: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.prompt-preview textarea { font-size: var(--font-size-status); line-height: 1.6; min-height: 170px; max-height: 260px; }
+.prompt-preview-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.prompt-preview-actions input { flex: 1; min-width: 160px; }
+:root[data-theme="light"] input:focus,
+:root[data-theme="light"] textarea:focus { background: #ffffff; }
+:root[data-theme="light"] .final-out { background: #ffffff; color: #1f2937; border-color: #cfd8ea; }
+:root[data-theme="light"] .result-card { background: #ffffff; border-color: #d7deea; }
+:root[data-theme="light"] .result-card-body { color: #283142; }
+:root[data-theme="light"] .queue-item { background: #ffffff; }
+
+@media (max-width: 1180px) {
+  .workspace-frame { grid-template-columns: 210px minmax(0, 1fr); }
+  .sidebar { padding: 12px; }
+  .history-list { max-height: 260px; }
+  #last-result-wrap { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 780px) {
+  header .sub { margin-left: 0; width: 100%; }
+  .workspace-frame { display: flex; flex-direction: column; }
+  .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .nav-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .layout { padding: 12px; }
+  .main-col { display: contents; }
+  .tool-panel-backdrop { padding-left: 0; }
+  .tool-panel-shell { width: 100%; min-width: 0; }
+  .field-row { grid-template-columns: 1fr; }
+  .queue-list { grid-template-columns: 1fr; max-height: none; }
+  .qi-top, .qi-actions { grid-template-columns: 1fr; }
+  .qi-phases { grid-template-columns: 1fr; }
+  .font-control { margin-left: 0; }
+}
 
 /* scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -177,9 +289,41 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 
 <header>
   <div class="logo">GL</div>
-  <h1>GitLab Issue 整理工具 <span style="font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-left:6px;">v1.1.2</span></h1>
+  <h1>GitLab Issue 整理工具 <span style="font-size:var(--font-size-tag);color:var(--text-dim);font-family:var(--mono);margin-left:6px;">v1.2.0</span></h1>
   <span class="sub">batch · scrape → process → export</span>
+  <div class="font-control" aria-label="字體大小">
+    <span>字體</span>
+    <div class="font-segment" role="group" aria-label="切換字體大小">
+      <button type="button" data-font-size="S" onclick="setFontSize('S')">S</button>
+      <button type="button" data-font-size="M" onclick="setFontSize('M')">M</button>
+      <button type="button" data-font-size="L" onclick="setFontSize('L')">L</button>
+      <button type="button" data-font-size="XL" onclick="setFontSize('XL')">XL</button>
+    </div>
+  </div>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">亮色</button>
 </header>
+
+<div class="workspace-frame">
+<aside class="sidebar">
+  <div>
+    <div class="sidebar-title">連線狀態</div>
+    <div class="sidebar-status" id="sidebar-status">尚未設定</div>
+  </div>
+  <nav class="nav-links" aria-label="工作台導覽">
+    <button class="nav-link active" data-section-target="step1" onclick="scrollToSection('step1')">Issue 工作區</button>
+    <button class="nav-link" data-section-target="step2" onclick="scrollToSection('step2')">處理清單</button>
+    <button class="nav-link" data-section-target="step3" onclick="scrollToSection('step3')">LLM 結果</button>
+  </nav>
+  <div>
+    <div class="sidebar-title" style="margin-bottom:6px">工具面板</div>
+    <div class="sidebar-tools">
+      <button class="btn-ghost btn-sm" onclick="openToolPanel('history')">歷史存檔</button>
+      <button class="btn-ghost btn-sm" onclick="openToolPanel('prompt')">Prompt Review</button>
+    </div>
+  </div>
+  <div class="sidebar-spacer"></div>
+  <button class="btn-ghost btn-sm" onclick="resetConfigGate()">重新設定連線</button>
+</aside>
 
 <div class="layout">
 <!-- ══ 主欄 ══ -->
@@ -189,7 +333,7 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
   <div class="step active" id="step-config">
     <div class="step-header">
       <div class="step-num"><span class="step-num-inner">0</span></div>
-      <div><div class="step-title">連線設定</div><div class="step-sub">GitLab 帳密（僅存於本頁記憶體）</div></div>
+      <div><div class="step-title">進入工作台</div><div class="step-sub">先完成本次連線設定，GitLab Token 僅存於本頁記憶體</div></div>
       <div class="step-badge" id="badge-config">未設定</div>
     </div>
     <div class="step-divider"></div>
@@ -216,6 +360,7 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
       <div class="btn-row">
         <button class="btn-primary" onclick="saveConfig()">儲存設定</button>
         <button class="btn-ghost" onclick="checkHealth()" id="btn-health">檢查 Gemini CLI</button>
+        <button class="btn-ghost" onclick="toggleTheme()" type="button">切換亮/暗色</button>
         <div class="status hidden" id="st-config"></div>
       </div>
     </div>
@@ -273,7 +418,9 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
         </select>
       </div>
       <div class="btn-row">
-        <button class="btn-primary" id="btn-start" onclick="startBatch()" disabled>開始批次處理</button>
+        <button class="btn-primary" id="btn-start" onclick="startBatch()" disabled>Run All</button>
+        <button class="btn-ghost" id="btn-scrape-only" onclick="runBatch('scrape')" disabled>Run Scrape Only</button>
+        <button class="btn-ghost" id="btn-llm-only" onclick="runBatch('llm')" disabled>Run LLM Only</button>
         <button class="btn-ghost" id="btn-stop" onclick="stopBatch()" disabled>停止</button>
         <button class="btn-excel" id="btn-excel" onclick="exportExcel()" disabled title="不經 LLM，直接將所有 Issue 的 metadata 匯出成 Excel">📊 匯出 Excel</button>
         <div class="status hidden" id="st-batch"></div>
@@ -293,7 +440,7 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
     <div class="step-divider"></div>
     <div class="step-body">
       <div class="queue-list" id="queue-list">
-        <div style="color:var(--text-dim);font-size:12px;padding:8px 0">尚未開始，請先填入 URL 並點擊「開始批次處理」</div>
+        <div style="color:var(--text-dim);font-size:12px;padding:8px 0">尚未建立工作清單，請先填入 URL 並點擊「載入清單」或批次按鈕。</div>
       </div>
     </div>
   </div>
@@ -310,22 +457,26 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
     <div class="step-divider"></div>
     <div class="step-body">
       <div id="last-result-wrap" style="display:none;flex-direction:column;gap:10px">
-        <div class="out-header">
-          <span class="out-label">LLM 整理結果</span>
-          <div style="display:flex;gap:6px">
-            <button class="btn-ghost btn-sm" onclick="copyEl('last-result')">複製</button>
-            <button class="btn-ghost btn-sm" onclick="downloadLastResult()">下載</button>
+        <div class="result-pane">
+          <div class="out-header">
+            <span class="out-label">LLM 整理結果</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn-ghost btn-sm" onclick="copyEl('last-result')">複製</button>
+              <button class="btn-ghost btn-sm" onclick="downloadLastResult()">下載</button>
+            </div>
           </div>
+          <div id="last-result" class="final-out"></div>
         </div>
-        <div id="last-result" class="final-out"></div>
-        <div class="out-header" style="margin-top:6px">
-          <span class="out-label">格式匯出</span>
-          <div style="display:flex;gap:6px">
-            <button class="btn-ghost btn-sm" onclick="copyEl('last-export')">複製</button>
-            <button class="btn-ghost btn-sm" onclick="downloadLastExport()">下載</button>
+        <div class="export-pane">
+          <div class="out-header">
+            <span class="out-label">格式匯出</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn-ghost btn-sm" onclick="copyEl('last-export')">複製</button>
+              <button class="btn-ghost btn-sm" onclick="downloadLastExport()">下載</button>
+            </div>
           </div>
+          <div id="last-export" class="final-out"></div>
         </div>
-        <div id="last-export" class="final-out"></div>
       </div>
       <div id="last-result-empty" style="color:var(--text-dim);font-size:12px;padding:8px 0">批次完成後，最後一筆結果會顯示在這裡。</div>
     </div>
@@ -333,28 +484,70 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 
 </div><!-- /main-col -->
 
-<!-- ══ 側欄：歷史存檔 ══ -->
-<div class="side-col">
-  <div>
-    <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span>歷史存檔</span>
-      <button class="btn-ghost btn-sm" onclick="loadHistory()">重整</button>
+</div><!-- /layout -->
+</div><!-- /workspace-frame -->
+
+<!-- ── 工具面板：歷史存檔 / Prompt Review ── -->
+<div class="tool-panel-backdrop" id="tool-panel-modal" onclick="closeToolPanel(event)">
+  <div class="tool-panel-shell">
+    <div class="tool-panel-header">
+      <div>
+        <div class="sidebar-title">工具面板</div>
+        <div class="tool-panel-title" id="tool-panel-title">歷史存檔</div>
+      </div>
+      <div class="modal-actions">
+        <div class="tool-panel-tabs">
+          <button class="btn-ghost btn-sm active" id="tool-tab-history" onclick="switchToolPanel('history')">歷史存檔</button>
+          <button class="btn-ghost btn-sm" id="tool-tab-prompt" onclick="switchToolPanel('prompt')">Prompt Review</button>
+        </div>
+        <button class="modal-close" onclick="closeToolPanelDirect()">✕</button>
+      </div>
+    </div>
+    <div class="tool-panel-content" id="side-col" data-active-panel="history">
+      <div class="history-panel">
+        <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>歷史存檔</span>
+          <button class="btn-ghost btn-sm" onclick="loadHistory()">重整</button>
+        </div>
+        <div class="history-tools">
+          <input type="text" id="history-search" placeholder="搜尋檔名 / issue / repo" oninput="renderHistoryList()">
+          <select id="history-kind" onchange="renderHistoryList()">
+            <option value="all">全部</option>
+            <option value="raw">raw</option>
+            <option value="result">result</option>
+            <option value="excel">excel</option>
+          </select>
+        </div>
+        <div class="history-list" id="history-list">
+          <div style="color:var(--text-dim);font-size:11px;padding:8px 0">載入中...</div>
+        </div>
+      </div>
+      <div class="prompt-preview">
+        <div class="out-header">
+          <span class="out-label">Prompt Review</span>
+          <button class="btn-ghost btn-sm" onclick="copyPromptPreview()">複製</button>
+        </div>
+        <textarea id="prompt-preview" readonly placeholder="選擇 Prompt 後會在此顯示內容"></textarea>
+        <div class="prompt-preview-actions">
+          <input type="text" id="prompt-new-name" placeholder="new-template.md">
+          <button class="btn-ghost btn-sm" onclick="savePromptFromPreview(false)">另存新檔</button>
+          <button class="btn-ghost btn-sm" onclick="savePromptFromPreview(true)">覆蓋目前</button>
+          <button class="btn-ghost btn-sm" onclick="togglePromptPreviewEdit()">編輯</button>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="history-list" id="history-list">
-    <div style="color:var(--text-dim);font-size:11px;padding:8px 0">載入中...</div>
-  </div>
 </div>
-
-</div><!-- /layout -->
 
 <!-- ── 檔案預覽 Modal ── -->
 <div class="modal-backdrop" id="modal" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="modal-title">檔案內容</span>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div class="modal-actions">
         <button class="btn-ghost btn-sm" onclick="copyModalContent()">複製</button>
+        <button class="btn-ghost btn-sm" id="modal-rerun-llm" onclick="rerunLlmFromModal()" style="display:none">Raw → LLM</button>
+        <button class="btn-ghost btn-sm" id="modal-export-result" onclick="exportFromModal()" style="display:none">Result → Export</button>
         <button class="modal-close" onclick="closeModalDirect()">✕</button>
       </div>
     </div>
@@ -393,10 +586,126 @@ button { font-family: var(--sans); font-size: 13px; border: none; border-radius:
 // ── State ──────────────────────────────────────────────────────────────
 const S = {
   username: "", password: "", projectId: "", token: "", timeout: 300,
-  running: false, stopFlag: false, modelChain: [], selectedModel: "",
+  running: false, stopFlag: false, modelChain: [], selectedModel: "", fontSize: "M", theme: "dark",
+  issueJobs: [], selectedIssueId: "", historyFiles: [], activeModalFile: null,
   lastResultMeta: null, lastExportMeta: null
 };
 let _abortController = null;  // 用於立即中止當前請求
+const FONT_SIZE_MAP = {
+  S: { base: 12, result: 16, status: 12, tag: 11 },
+  M: { base: 14, result: 16, status: 12, tag: 11 },
+  L: { base: 16, result: 18, status: 13, tag: 12 },
+  XL: { base: 18, result: 20, status: 14, tag: 12 },
+};
+
+function setFontSize(size) {
+  const normalized = FONT_SIZE_MAP[size] ? size : "M";
+  applyFontSize(normalized);
+  localStorage.setItem("gitlab_ui_font_size", normalized);
+}
+
+function applyFontSize(size) {
+  const cfg = FONT_SIZE_MAP[size] || FONT_SIZE_MAP.M;
+  const root = document.documentElement;
+  root.style.setProperty("--font-size-base", `${cfg.base}px`);
+  root.style.setProperty("--font-size-result", `${cfg.result}px`);
+  root.style.setProperty("--font-size-status", `${cfg.status}px`);
+  root.style.setProperty("--font-size-tag", `${cfg.tag}px`);
+  S.fontSize = size;
+  document.querySelectorAll("[data-font-size]").forEach(btn => {
+    const active = btn.dataset.fontSize === size;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function setTheme(theme) {
+  const normalized = theme === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = normalized;
+  S.theme = normalized;
+  localStorage.setItem("gitlab_ui_theme", normalized);
+  const btn = id("theme-toggle");
+  if (btn) btn.textContent = normalized === "light" ? "暗色" : "亮色";
+}
+
+function toggleTheme() {
+  setTheme(S.theme === "light" ? "dark" : "light");
+}
+
+function enterWorkspace() {
+  document.body.classList.add("workspace-ready");
+  updateSidebarStatus();
+  requestAnimationFrame(() => scrollToSection("step1"));
+}
+
+function resetConfigGate() {
+  document.body.classList.remove("workspace-ready");
+  closeToolPanelDirect();
+  id("step-config").classList.add("active");
+  id("step-config").classList.remove("done");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateSidebarStatus() {
+  const mode = S.projectId && S.token ? "API 模式" : "Selenium 模式";
+  const project = S.projectId ? `Project ${S.projectId}` : "未設定 Project";
+  const timeout = `Timeout ${S.timeout || 300}s`;
+  const model = id("run-model") && id("run-model").value ? id("run-model").value : "尚未選模型";
+  const el = id("sidebar-status");
+  if (el) el.innerHTML = `${mode}<br>${project}<br>${timeout}<br>${model}`;
+}
+
+function scrollToSection(sectionId) {
+  const el = id(sectionId);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  setActiveNav(sectionId);
+}
+
+function setActiveNav(sectionId) {
+  document.querySelectorAll(".nav-link").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.sectionTarget === sectionId);
+  });
+}
+
+function initSectionObserver() {
+  if (!("IntersectionObserver" in window)) return;
+  const sections = ["step1", "step2", "step3"].map(id).filter(Boolean);
+  const observer = new IntersectionObserver(entries => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (visible) setActiveNav(visible.target.id);
+  }, { rootMargin: "-20% 0px -55% 0px", threshold: [0.1, 0.3, 0.6] });
+  sections.forEach(section => observer.observe(section));
+}
+
+function openToolPanel(panel) {
+  switchToolPanel(panel || "history");
+  id("tool-panel-modal").classList.add("open");
+  if (panel === "history") loadHistory();
+}
+
+function switchToolPanel(panel) {
+  const normalized = panel === "prompt" ? "prompt" : "history";
+  const content = id("side-col");
+  if (content) content.dataset.activePanel = normalized;
+  const title = id("tool-panel-title");
+  if (title) title.textContent = normalized === "prompt" ? "Prompt Review" : "歷史存檔";
+  const historyTab = id("tool-tab-history");
+  const promptTab = id("tool-tab-prompt");
+  if (historyTab) historyTab.classList.toggle("active", normalized === "history");
+  if (promptTab) promptTab.classList.toggle("active", normalized === "prompt");
+}
+
+function closeToolPanel(e) {
+  if (e.target === id("tool-panel-modal")) closeToolPanelDirect();
+}
+
+function closeToolPanelDirect() {
+  const modal = id("tool-panel-modal");
+  if (modal) modal.classList.remove("open");
+}
 
 // ── Config ─────────────────────────────────────────────────────────────
 function saveConfig() {
@@ -427,32 +736,35 @@ function saveConfig() {
   const modeLabel = hasApi ? `API 模式（Project ${pid}）` : "Selenium 模式（備用）";
   showSt("st-config","success",`✓ 設定已儲存（${modeLabel}，Timeout ${timeout}s）`);
   id("badge-config").textContent = hasApi ? "API 模式" : "Selenium";
-  setDone("step-config"); setActive("step1");
+  setDone("step-config");
   id("btn-start").disabled = false;
+  id("btn-scrape-only").disabled = false;
+  id("btn-llm-only").disabled = false;
   id("btn-excel").disabled = false;
+  enterWorkspace();
 }
 
 async function checkHealth() {
   const btn = id("btn-health");
-  btn.disabled = true; btn.textContent = "???...";
-  showSt("st-config","info","?? Gemini CLI...");
+  btn.disabled = true; btn.textContent = "檢查中...";
+  showSt("st-config","info","正在檢查 Gemini CLI...");
   try {
     const d = await api("/api/health");
     S.modelChain = Array.isArray(d.model_chain) ? d.model_chain : [];
     refreshModelSelect();
     if (d.cli_found) {
-      let msg = `? Gemini CLI ??`;
-      msg += `\n??: ${d.gemini_cli}`;
+      let msg = `✓ Gemini CLI 可用`;
+      msg += `\n路徑: ${d.gemini_cli}`;
       msg += `\nTimeout: ${d.timeout}s`;
       const enabledModels = S.modelChain.filter(item => item && item.allowed).map(item => item.label);
       if (enabledModels.length) {
-        msg += `\n????: ${enabledModels.join(" / ")}`;
+        msg += `\n可用模型: ${enabledModels.join(" / ")}`;
       }
       showSt("st-config","success", msg.split("\n").join(" | "));
     }
-    else showSt("st-config","error",`??? Gemini CLI?${d.gemini_cli}??????????`);
-  } catch(e) { showSt("st-config","error",`???????${e.message}`); }
-  finally { btn.disabled = false; btn.textContent = "?? Gemini CLI"; }
+    else showSt("st-config","error",`找不到 Gemini CLI：${d.gemini_cli}，請確認已安裝或設定 GEMINI_CLI_PATH`);
+  } catch(e) { showSt("st-config","error",`健康檢查失敗：${e.message}`); }
+  finally { btn.disabled = false; btn.textContent = "檢查 Gemini CLI"; }
 }
 
 async function resolveModelChain() {
@@ -470,7 +782,7 @@ function refreshModelSelect() {
   const models = (S.modelChain || []).filter(item => item && item.allowed && item.model_id);
   sel.innerHTML = "";
   if (!models.length) {
-    sel.innerHTML = '<option value="">???? Gemini CLI</option>';
+    sel.innerHTML = '<option value="">請先檢查 Gemini CLI</option>';
     S.selectedModel = "";
     return;
   }
@@ -482,6 +794,7 @@ function refreshModelSelect() {
   });
   sel.value = models.some(item => item.model_id === current) ? current : models[0].model_id;
   S.selectedModel = sel.value;
+  updateSidebarStatus();
 }
 
 function getSelectedModel() {
@@ -565,6 +878,7 @@ async function previewIssueUrls(urls) {
       ? `${d.count} 個 Issue（${errCount} 筆無法取得）`
       : `${d.count} 個 Issue`;
     renderIssuePreviewList(d.issues, header);
+    createIssueJobs(d.issues.map(i => i.web_url), d.issues);
 
     const msg = errCount
       ? `✓ 已載入 ${d.count} 筆，${errCount} 筆失敗（見清單）`
@@ -604,6 +918,7 @@ async function resolveFilterUrl(filterUrl) {
 
     // 使用共用渲染函式（含編號、指派人、milestone）
     renderIssuePreviewList(d.issues, `找到 ${d.count} 個 Issue（專案：${d.project}）`);
+    createIssueJobs(d.issues.map(i => i.web_url), d.issues);
     showSt("st-load", "success", `✓ 已解析 ${d.count} 個 Issue，URL 已填入清單，可直接開始處理`);
   } catch(e) {
     showSt("st-load", "error", e.message);
@@ -614,193 +929,257 @@ async function resolveFilterUrl(filterUrl) {
 
 // ── Batch processing ───────────────────────────────────────────────────
 async function startBatch() {
+  await runBatch("all");
+}
+
+function getRunContext(requireModel = false) {
   const useApi = S.projectId && S.token;
   if (!useApi && (!S.username || !S.password)) {
-    showSt("st-batch","error","請先儲存連線設定（Project ID + API Token）"); return;
+    throw new Error("請先儲存連線設定（Project ID + API Token，或備用帳號密碼）");
   }
+  let selectedModel = null;
+  if (requireModel) {
+    selectedModel = getSelectedModel();
+    if (!selectedModel) throw new Error("請先選擇一個可用的 LLM 模型");
+  }
+  return { useApi, selectedModel };
+}
+
+function extractIssueId(url, fallback) {
+  try {
+    const m = new URL(url).pathname.match(/\/(?:issues|work_items)\/(\d+)$/);
+    return m ? m[1] : String(fallback + 1);
+  } catch {
+    return String(fallback + 1);
+  }
+}
+
+function createIssueJobs(urls, previews = []) {
+  S.issueJobs = (urls || []).map((url, idx) => {
+    const preview = previews.find(item => item.web_url === url) || {};
+    const issueId = preview.iid ? String(preview.iid) : extractIssueId(url, idx);
+    return {
+      uid: `${issueId}-${idx}`,
+      id: issueId,
+      url,
+      title: preview.title || shortUrl(url),
+      modelName: S.selectedModel || "",
+      promptFilename: id("prompt-select").value || "",
+      status: { scrape: "waiting", llm: "waiting", export: "waiting" },
+      rawText: "",
+      llmResult: "",
+      exportResult: "",
+      files: { raw: "", result: "", export: "" },
+      error: null,
+    };
+  });
+  S.selectedIssueId = S.issueJobs[0] ? S.issueJobs[0].uid : "";
+  renderIssueList();
+}
+
+function ensureIssueJobsFromInput() {
   const raw = id("url-list").value.trim();
   const urls = raw.split("\n").map(u => u.trim()).filter(u => u.startsWith("http"));
-  if (!urls.length) { showSt("st-batch","error","請輸入至少一個有效的 URL"); return; }
+  if (!urls.length) throw new Error("請輸入至少一個有效的 URL");
+  const currentUrls = S.issueJobs.map(job => job.url).join("\n");
+  if (!S.issueJobs.length || currentUrls !== urls.join("\n")) createIssueJobs(urls);
+  return S.issueJobs;
+}
 
-  await resolveModelChain();
-  const selectedModel = getSelectedModel();
-  if (!selectedModel) { showSt("st-batch","error","請先選擇一個可用的 LLM 模型"); return; }
+async function runBatch(mode) {
+  try {
+    const jobs = ensureIssueJobsFromInput();
+    await resolveModelChain();
+    const requireModel = mode === "all" || mode === "llm";
+    const ctx = getRunContext(requireModel);
 
-  S.running = true; S.stopFlag = false;
-  id("btn-start").disabled = true;
-  id("btn-stop").disabled = false;
-  setActive("step2");
-  id("badge-step2").textContent = `0 / ${urls.length}`;
+    S.running = true; S.stopFlag = false;
+    setBatchButtonsDisabled(true);
+    id("btn-stop").disabled = false;
+    setActive("step2");
+    id("badge-step2").textContent = `0 / ${jobs.length}`;
 
-  // 初始化進度列表
-  id("queue-list").innerHTML = "";
-  urls.forEach((url, i) => {
-    renderQueueItem(i, url, "waiting", "⏳ 等待中");
-    setQueuePhases(i, {
-      scrape: { state: "waiting", text: "等待中" },
-      llm: { state: "waiting", text: "等待中" },
-      export: { state: "waiting", text: "等待中" },
-    });
-    setQueueModelDetails(i, [], `已選模型：${selectedModel.label}`);
-  });
-
-  let doneCount = 0;
-  for (let i = 0; i < urls.length; i++) {
-    if (S.stopFlag) { showSt("st-batch","error","⏹ 已中止"); break; }
-
-    const url = urls[i];
-    let currentStage = "scrape";
-    _abortController = new AbortController();
-    const sig = _abortController.signal;
-
-    updateQueueItem(i, "running", useApi ? "⚡ API 取資料中..." : "🔄 Selenium 爬取中...", null);
-    setQueuePhases(i, {
-      scrape: { state: "running", text: useApi ? "API 擷取中" : "Selenium 擷取中" },
-      llm: { state: "waiting", text: "等待中" },
-      export: { state: "waiting", text: "等待中" },
-    });
-    showSt("st-batch","info",`處理第 ${i+1}/${urls.length} 筆：${shortUrl(url)}`);
-
-    try {
-      // Step A: 爬取（API 優先，備用 Selenium）
-      let scrapeRes;
-      if (useApi) {
-        scrapeRes = await api("/api/scrape_api", {
-          url,
-          project_id:    parseInt(S.projectId),
-          private_token: S.token,
-        }, sig);
-      } else {
-        scrapeRes = await api("/api/scrape", {
-          url, username: S.username, password: S.password,
-        }, sig);
+    let doneCount = 0;
+    for (const job of jobs) {
+      if (S.stopFlag) break;
+      try {
+        if (mode === "scrape") {
+          await runScrape(job, ctx);
+        } else if (mode === "llm") {
+          if (job.status.scrape !== "success") {
+            markJobSkipped(job, "llm", "尚未 scrape，已略過");
+            continue;
+          }
+          await runLlm(job, ctx.selectedModel);
+        } else {
+          await runScrape(job, ctx);
+          if (S.stopFlag) break;
+          await runLlm(job, ctx.selectedModel);
+          if (S.stopFlag) break;
+          await runExport(job);
+        }
+        doneCount++;
+      } catch (e) {
+        job.error = e.name === "AbortError" ? "已中止" : e.message;
+        if (e.name === "AbortError" || S.stopFlag) break;
+      } finally {
+        id("badge-step2").textContent = `${doneCount} / ${jobs.length}`;
+        renderIssueList();
       }
-      if (scrapeRes.error) throw new Error(scrapeRes.error);
-
-      if (S.stopFlag) { updateQueueItem(i, "waiting", "⏹ 中止", null); break; }
-      updateQueueItem(i, "running", `🤖 ${selectedModel.label} 整理中...`, null);
-      setQueuePhases(i, {
-        scrape: { state: "done", text: "完成" },
-        llm: { state: "running", text: `${selectedModel.label} 執行中` },
-        export: { state: "waiting", text: "等待中" },
-      });
-      setQueueModelDetails(i, [
-        { label: selectedModel.label, model_id: selectedModel.model_id, status: "running" }
-      ], `目前模型：${selectedModel.label}`);
-
-      // Step B: LLM 整理
-      currentStage = "llm";
-      _abortController = new AbortController();
-      const sig2 = _abortController.signal;
-      const processRes = await api("/api/process", {
-        raw_text:      scrapeRes.raw_text,
-        system_prompt: id("process-prompt").value.trim(),
-        url:           url,
-        timeout:       S.timeout || 300,
-        model_name:    selectedModel.model_id,
-        model_label:   selectedModel.label,
-      }, sig2);
-      if (processRes.error) throw new Error(processRes.error);
-
-      if (S.stopFlag) { updateQueueItem(i, "waiting", "⏹ 中止", null); break; }
-
-      // Step C: 格式匯出
-      currentStage = "export";
-      _abortController = new AbortController();
-      const sig3 = _abortController.signal;
-      setQueuePhases(i, {
-        scrape: { state: "done", text: "完成" },
-        llm: { state: "done", text: `${selectedModel.label} 完成` },
-        export: { state: "running", text: "匯出中" },
-      });
-      setQueueModelDetails(i, [
-        { label: selectedModel.label, model_id: selectedModel.model_id, status: "ok" }
-      ], `最終採用：${selectedModel.label}`);
-      const exportRes = await api("/api/export", {
-        processed_text: processRes.result,
-        export_prompt:  id("export-prompt").value.trim(),
-      }, sig3);
-      if (exportRes.error) throw new Error(exportRes.error);
-
-      // 完成
-      doneCount++;
-      const files = [];
-      if (scrapeRes.saved_raw)      files.push({ label: "raw",    path: scrapeRes.saved_raw });
-      if (processRes.saved_result)  files.push({ label: "result", path: processRes.saved_result });
-      updateQueueItem(i, "done", `✓ 完成（${selectedModel.label}）`, files);
-      setQueuePhases(i, {
-        scrape: { state: "done", text: "完成" },
-        llm: { state: "done", text: `${selectedModel.label} 完成` },
-        export: { state: "done", text: "完成" },
-      });
-      setQueueModelDetails(i, [
-        { label: selectedModel.label, model_id: selectedModel.model_id, status: "ok" }
-      ], `最終採用：${processRes.used_model_label || selectedModel.label}`);
-      id("badge-step2").textContent = `${doneCount} / ${urls.length}`;
-      showLastResult(processRes.result, exportRes.output, {
-        url,
-        modelName: processRes.used_model || selectedModel.model_id,
-      });
-      loadHistory();
-
-    } catch(e) {
-      if (e.name === "AbortError" || S.stopFlag) {
-        updateQueueItem(i, "waiting", "⏹ 中止", null);
-        setQueuePhases(i, {
-          scrape: { state: "waiting", text: "已中止" },
-          llm: { state: "waiting", text: "已中止" },
-          export: { state: "waiting", text: "已中止" },
-        });
-        setQueueModelDetails(i, [
-          { label: selectedModel.label, model_id: selectedModel.model_id, status: "skipped", note: "已中止" }
-        ], "本筆已中止");
-        break;
-      }
-      updateQueueItem(i, "error", `✗ ${e.message}`, null);
-      if (currentStage === "scrape") {
-        setQueuePhases(i, {
-          scrape: { state: "error", text: "失敗" },
-          llm: { state: "waiting", text: "未執行" },
-          export: { state: "waiting", text: "未執行" },
-        });
-        setQueueModelDetails(i, [], "尚未進入模型處理");
-      } else if (currentStage === "llm") {
-        setQueuePhases(i, {
-          scrape: { state: "done", text: "完成" },
-          llm: { state: "error", text: "失敗" },
-          export: { state: "waiting", text: "未執行" },
-        });
-        setQueueModelDetails(i, [
-          { label: selectedModel.label, model_id: selectedModel.model_id, status: "failed", note: e.message }
-        ], `模型失敗：${selectedModel.label}`);
-      } else {
-        setQueuePhases(i, {
-          scrape: { state: "done", text: "完成" },
-          llm: { state: "done", text: `${selectedModel.label} 完成` },
-          export: { state: "error", text: "失敗" },
-        });
-        setQueueModelDetails(i, [
-          { label: selectedModel.label, model_id: selectedModel.model_id, status: "ok" }
-        ], "模型完成，但匯出失敗");
-      }
-      showSt("st-batch","error",`第 ${i+1} 筆失敗：${e.message}`);
     }
-  }
 
-  S.running = false; _abortController = null;
-  id("btn-start").disabled = false;
-  id("btn-stop").disabled = true;
-  id("btn-excel").disabled = false;
-
-  if (!S.stopFlag) {
-    showSt("st-batch","success",`全部完成，共 ${doneCount}/${urls.length} 筆成功`);
-    setDone("step2"); setActive("step3");
-    id("badge-step3").textContent = "完成";
-    setDone("step3");
-  } else {
-    showSt("st-batch","error","⏹ 已中止");
+    if (!S.stopFlag) {
+      showSt("st-batch","success",`批次完成，共 ${doneCount}/${jobs.length} 筆完成`);
+      setDone("step2");
+      if (S.issueJobs.some(job => job.llmResult || job.exportResult)) {
+        setActive("step3");
+        id("badge-step3").textContent = "完成";
+        setDone("step3");
+      }
+    } else {
+      showSt("st-batch","error","⏹ 已中止");
+    }
+    loadHistory();
+  } catch(e) {
+    showSt("st-batch","error", e.message);
+  } finally {
+    S.running = false; _abortController = null;
+    setBatchButtonsDisabled(false);
+    id("btn-stop").disabled = true;
   }
-  loadHistory();
+}
+
+function setBatchButtonsDisabled(disabled) {
+  ["btn-start", "btn-scrape-only", "btn-llm-only", "btn-excel"].forEach(btnId => {
+    const el = id(btnId);
+    if (el) el.disabled = disabled;
+  });
+}
+
+function setJobStatus(job, phase, status, error = null) {
+  job.status[phase] = status;
+  job.error = error;
+  renderIssueList();
+}
+
+function markJobSkipped(job, phase, reason) {
+  job.status[phase] = "skipped";
+  job.error = reason;
+  renderIssueList();
+}
+
+async function runScrapeById(uid) {
+  const job = S.issueJobs.find(item => item.uid === uid);
+  if (!job) return;
+  try {
+    const ctx = getRunContext(false);
+    setBatchButtonsDisabled(true);
+    await runScrape(job, ctx);
+    showSt("st-batch", "success", `#${job.id} scrape 完成`);
+  } catch(e) {
+    job.error = e.message;
+    showSt("st-batch", "error", e.message);
+    renderIssueList();
+  } finally {
+    setBatchButtonsDisabled(false);
+  }
+}
+
+async function runLlmById(uid) {
+  const job = S.issueJobs.find(item => item.uid === uid);
+  if (!job) return;
+  try {
+    await resolveModelChain();
+    const { selectedModel } = getRunContext(true);
+    if (job.status.scrape !== "success") throw new Error("請先完成 Scrape 才能執行 LLM");
+    setBatchButtonsDisabled(true);
+    await runLlm(job, selectedModel);
+    showSt("st-batch", "success", `#${job.id} LLM 完成`);
+  } catch(e) {
+    job.error = e.message;
+    showSt("st-batch", "error", e.message);
+    renderIssueList();
+  } finally {
+    setBatchButtonsDisabled(false);
+  }
+}
+
+async function runExportById(uid) {
+  const job = S.issueJobs.find(item => item.uid === uid);
+  if (!job) return;
+  try {
+    if (job.status.llm !== "success") throw new Error("請先完成 LLM 才能 Export");
+    setBatchButtonsDisabled(true);
+    await runExport(job);
+    showSt("st-batch", "success", `#${job.id} Export 完成`);
+  } catch(e) {
+    job.error = e.message;
+    showSt("st-batch", "error", e.message);
+    renderIssueList();
+  } finally {
+    setBatchButtonsDisabled(false);
+  }
+}
+
+async function runScrape(job, ctx) {
+  setJobStatus(job, "scrape", "running");
+  showSt("st-batch","info",`Scrape #${job.id}：${shortUrl(job.url)}`);
+  _abortController = new AbortController();
+  const payload = ctx.useApi
+    ? { url: job.url, project_id: parseInt(S.projectId), private_token: S.token }
+    : { url: job.url, username: S.username, password: S.password };
+  const scrapeRes = await api(ctx.useApi ? "/api/scrape_api" : "/api/scrape", payload, _abortController.signal);
+  if (scrapeRes.error) throw new Error(scrapeRes.error);
+  job.rawText = scrapeRes.raw_text || "";
+  job.files.raw = scrapeRes.saved_raw || "";
+  if (scrapeRes.issue && scrapeRes.issue.title) job.title = scrapeRes.issue.title;
+  setJobStatus(job, "scrape", "success");
+  return scrapeRes;
+}
+
+async function runLlm(job, selectedModel) {
+  if (!job.rawText) throw new Error("缺少 raw text，請先執行 Scrape");
+  setJobStatus(job, "llm", "running");
+  job.modelName = selectedModel.model_id;
+  job.promptFilename = id("prompt-select").value || "";
+  showSt("st-batch","info",`LLM #${job.id}：${selectedModel.label}`);
+  _abortController = new AbortController();
+  const processRes = await api("/api/process", {
+    raw_text: job.rawText,
+    system_prompt: id("process-prompt").value.trim(),
+    url: job.url,
+    timeout: S.timeout || 300,
+    model_name: selectedModel.model_id,
+    model_label: selectedModel.label,
+  }, _abortController.signal);
+  if (processRes.error) throw new Error(processRes.error);
+  job.llmResult = processRes.result || "";
+  job.files.result = processRes.saved_result || "";
+  setJobStatus(job, "llm", "success");
+  showLastResult(job.llmResult, job.exportResult || "", {
+    url: job.url,
+    modelName: processRes.used_model || selectedModel.model_id,
+  });
+  return processRes;
+}
+
+async function runExport(job) {
+  if (!job.llmResult) throw new Error("缺少 LLM result，請先執行 LLM");
+  setJobStatus(job, "export", "running");
+  showSt("st-batch","info",`Export #${job.id}`);
+  _abortController = new AbortController();
+  const exportRes = await api("/api/export", {
+    processed_text: job.llmResult,
+    export_prompt: id("export-prompt").value.trim(),
+  }, _abortController.signal);
+  if (exportRes.error) throw new Error(exportRes.error);
+  job.exportResult = exportRes.output || "";
+  setJobStatus(job, "export", "success");
+  showLastResult(job.llmResult, job.exportResult, {
+    url: job.url,
+    modelName: job.modelName || "unknown-model",
+  });
+  return exportRes;
 }
 
 function stopBatch() {
@@ -851,6 +1230,89 @@ async function exportExcel() {
 }
 
 // ── Queue UI helpers ───────────────────────────────────────────────────
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function phaseClass(status) {
+  if (status === "success") return "done";
+  if (status === "error") return "error";
+  if (status === "running") return "running";
+  if (status === "skipped") return "skipped";
+  return "waiting";
+}
+
+function phaseText(status) {
+  const map = {
+    waiting: "等待中",
+    running: "執行中",
+    success: "完成",
+    error: "失敗",
+    skipped: "略過",
+  };
+  return map[status] || "等待中";
+}
+
+function renderIssueList() {
+  const list = id("queue-list");
+  if (!S.issueJobs.length) {
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:8px 0">尚未建立工作清單，請先填入 URL 並點擊「載入清單」或批次按鈕。</div>';
+    return;
+  }
+  list.innerHTML = S.issueJobs.map(job => renderIssueCard(job)).join("");
+}
+
+function renderIssueCard(job) {
+  const anyRunning = Object.values(job.status).includes("running") || S.running;
+  const selected = S.selectedIssueId === job.uid ? " selected" : "";
+  const scrapeDisabled = anyRunning ? "disabled" : "";
+  const llmDisabled = anyRunning || job.status.scrape !== "success" ? "disabled" : "";
+  const exportDisabled = anyRunning || job.status.llm !== "success" ? "disabled" : "";
+  const files = [
+    job.files.raw ? `<span onclick="viewFile('${escapeHtml(job.files.raw.replace(/\\/g, "/").split("/").pop())}')" title="${escapeHtml(job.files.raw)}">[raw] ${escapeHtml(job.files.raw.replace(/\\/g, "/").split("/").pop())}</span>` : "",
+    job.files.result ? `<span onclick="viewFile('${escapeHtml(job.files.result.replace(/\\/g, "/").split("/").pop())}')" title="${escapeHtml(job.files.result)}">[result] ${escapeHtml(job.files.result.replace(/\\/g, "/").split("/").pop())}</span>` : "",
+  ].filter(Boolean).join("");
+  return `
+    <div class="queue-item ${phaseClass(job.status.export === "success" ? "success" : job.status.llm === "success" ? "running" : job.status.scrape)}${selected}" onclick="selectIssueJob('${escapeHtml(job.uid)}')">
+      <div class="qi-top">
+        <div class="qi-main">
+          <div class="qi-title" title="${escapeHtml(job.title)}">#${escapeHtml(job.id)} ${escapeHtml(job.title)}</div>
+          <div class="qi-url" title="${escapeHtml(job.url)}">${escapeHtml(job.url)}</div>
+        </div>
+        <div class="qi-actions" onclick="event.stopPropagation()">
+          <button class="btn-ghost" onclick="runScrapeById('${escapeHtml(job.uid)}')" ${scrapeDisabled}>Scrape</button>
+          <button class="btn-ghost" onclick="runLlmById('${escapeHtml(job.uid)}')" ${llmDisabled}>Run LLM</button>
+          <button class="btn-ghost" onclick="runExportById('${escapeHtml(job.uid)}')" ${exportDisabled}>Export</button>
+        </div>
+      </div>
+      <div class="qi-phases">
+        <div class="qi-phase ${phaseClass(job.status.scrape)}"><div class="qi-phase-name">Scrape</div><div class="qi-phase-state">${phaseText(job.status.scrape)}</div></div>
+        <div class="qi-phase ${phaseClass(job.status.llm)}"><div class="qi-phase-name">LLM</div><div class="qi-phase-state">${phaseText(job.status.llm)}</div></div>
+        <div class="qi-phase ${phaseClass(job.status.export)}"><div class="qi-phase-name">Export</div><div class="qi-phase-state">${phaseText(job.status.export)}</div></div>
+      </div>
+      <div class="qi-models">${job.modelName ? `<span class="qi-model-pill ok">${escapeHtml(job.modelName)}</span>` : ""}${job.promptFilename ? `<span class="qi-model-pill">${escapeHtml(job.promptFilename)}</span>` : ""}</div>
+      ${job.error ? `<div class="qi-error">${escapeHtml(job.error)}</div>` : ""}
+      <div class="qi-files">${files}</div>
+    </div>`;
+}
+
+function selectIssueJob(uid) {
+  S.selectedIssueId = uid;
+  const job = S.issueJobs.find(item => item.uid === uid);
+  renderIssueList();
+  if (job && (job.llmResult || job.exportResult)) {
+    showLastResult(job.llmResult || "", job.exportResult || "", {
+      url: job.url,
+      modelName: job.modelName || "unknown-model",
+    });
+  }
+}
+
 function renderQueueItem(idx, url, state, statusText) {
   const el = document.createElement("div");
   el.className = `queue-item ${state}`;
@@ -925,10 +1387,98 @@ function setQueuePhases(idx, phases) {
 }
 
 // ── Last result ────────────────────────────────────────────────────────
+const LLM_SECTION_DEFS = [
+  { key: "problem", label: "問題說明", aliases: ["問題說明", "問題描述", "Issue 說明", "背景與問題"] },
+  { key: "rootCause", label: "根本原因", aliases: ["根本原因", "原因分析", "Root Cause"] },
+  { key: "solution", label: "解決方式", aliases: ["解決方式", "處理方式", "解法", "建議方案"] },
+  { key: "test", label: "測試建議", aliases: ["測試建議", "測試方式", "測試項目"] },
+  { key: "acceptance", label: "驗收標準", aliases: ["驗收標準", "驗收條件", "AC"] },
+  { key: "todo", label: "待辦事項", aliases: ["待辦事項", "待辦", "Todo", "Action Items"] },
+  { key: "consensus", label: "討論共識", aliases: ["討論共識", "討論結論", "共識"] },
+  { key: "extra", label: "補充資訊", aliases: ["補充資訊", "補充內容", "其他", "其他資訊"] },
+];
+
+function normalizeHeading(text) {
+  return (text || "")
+    .replace(/^#+\s*/, "")
+    .replace(/[：:]+$/, "")
+    .replace(/[【】\[\]]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function matchSectionKey(heading) {
+  const normalized = normalizeHeading(heading);
+  const hit = LLM_SECTION_DEFS.find(def =>
+    def.aliases.some(alias => normalized.includes(normalizeHeading(alias)))
+  );
+  return hit ? hit.key : "other";
+}
+
+function parseLlmSections(text) {
+  const source = (text || "").trim();
+  if (!source) return { ok: false, sections: [] };
+
+  const headingRe = /^#{1,3}\s+(.+?)\s*$/gm;
+  const matches = [...source.matchAll(headingRe)];
+  if (!matches.length) return { ok: false, sections: [] };
+
+  const buckets = {};
+  const order = [];
+  matches.forEach((match, idx) => {
+    const start = match.index + match[0].length;
+    const end = idx + 1 < matches.length ? matches[idx + 1].index : source.length;
+    const heading = match[1].trim();
+    const key = matchSectionKey(heading);
+    const label = key === "other" ? heading : (LLM_SECTION_DEFS.find(def => def.key === key) || {}).label;
+    const body = source.slice(start, end).trim();
+    const bucketKey = key === "other" ? `other:${heading}` : key;
+    if (!buckets[bucketKey]) {
+      buckets[bucketKey] = { key: bucketKey, label, body: "" };
+      order.push(bucketKey);
+    }
+    buckets[bucketKey].body = [buckets[bucketKey].body, body].filter(Boolean).join("\n\n");
+  });
+
+  const sections = LLM_SECTION_DEFS.map(def => ({
+    key: def.key,
+    label: def.label,
+    body: (buckets[def.key] && buckets[def.key].body) || "",
+  }));
+  order.filter(key => key.startsWith("other:")).forEach(key => sections.push(buckets[key]));
+  return { ok: true, sections };
+}
+
+function renderLlmResult(container, text) {
+  container.dataset.raw = text || "";
+  container.innerHTML = "";
+  const parsed = parseLlmSections(text);
+  if (!parsed.ok) {
+    container.className = "final-out result-fallback";
+    container.textContent = text || "";
+    return;
+  }
+
+  container.className = "final-out result-sections";
+  parsed.sections.forEach(section => {
+    const card = document.createElement("section");
+    card.className = `result-card${section.body ? "" : " empty"}`;
+    const title = document.createElement("h3");
+    title.className = "result-card-title";
+    title.textContent = section.label;
+    const body = document.createElement("div");
+    body.className = "result-card-body";
+    body.textContent = section.body || "此段未由 LLM 輸出。";
+    card.append(title, body);
+    container.appendChild(card);
+  });
+}
+
 function showLastResult(result, exportOutput, meta = {}) {
-  id("last-result").textContent = result;
+  renderLlmResult(id("last-result"), result);
   id("last-export").textContent = exportOutput;
-  id("last-result-wrap").style.display = "flex";
+  id("last-export").dataset.raw = exportOutput || "";
+  id("last-result-wrap").style.display = "grid";
   id("last-result-empty").style.display = "none";
   S.lastResultMeta = { url: meta.url || "", modelName: meta.modelName || "unknown-model" };
   S.lastExportMeta = { url: meta.url || "", modelName: meta.modelName || "unknown-model" };
@@ -938,34 +1488,66 @@ function showLastResult(result, exportOutput, meta = {}) {
 async function loadHistory() {
   try {
     const d = await api("/api/outputs");
-    const list = id("history-list");
-    if (!d.files || !d.files.length) {
-      list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px 0">尚無存檔</div>';
-      return;
-    }
-    list.innerHTML = d.files.map(f => {
-      const kind = f.filename.startsWith("raw") ? "raw" : "result";
-      const label = kind === "raw" ? "爬取原始" : "LLM 整理";
-      return `
-        <div class="hist-item" onclick="viewFile('${f.filename}')">
-          <div class="hist-name">${f.filename}</div>
-          <div class="hist-meta" style="display:flex;align-items:center;gap:6px;margin-top:3px">
-            <span class="hist-kind ${kind}">${label}</span>
-            <span>${f.mtime}</span>
-            <span>${(f.size/1024).toFixed(1)} KB</span>
-          </div>
-        </div>`;
-    }).join("");
+    S.historyFiles = d.files || [];
+    renderHistoryList();
   } catch(e) {
     id("history-list").innerHTML = `<div style="color:var(--red);font-size:11px">${e.message}</div>`;
   }
 }
 
+function renderHistoryList() {
+  const list = id("history-list");
+  const query = (id("history-search") ? id("history-search").value : "").trim().toLowerCase();
+  const kindFilter = id("history-kind") ? id("history-kind").value : "all";
+  const files = (S.historyFiles || []).filter(f => {
+    const kind = f.kind || inferOutputKind(f.filename);
+    const matchKind = kindFilter === "all" || kind === kindFilter;
+    const matchQuery = !query || f.filename.toLowerCase().includes(query);
+    return matchKind && matchQuery;
+  });
+  if (!files.length) {
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:8px 0">沒有符合條件的存檔</div>';
+    return;
+  }
+  list.innerHTML = files.map(f => {
+    const kind = f.kind || inferOutputKind(f.filename);
+    const label = kind === "raw" ? "爬取原始" : kind === "excel" ? "Excel" : "LLM 整理";
+    return `
+      <div class="hist-item" onclick="viewFile('${escapeHtml(f.filename)}')">
+        <div class="hist-name">${escapeHtml(f.filename)}</div>
+        <div class="hist-meta" style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
+          <span class="hist-kind ${kind}">${label}</span>
+          <span>${escapeHtml(f.mtime || "")}</span>
+          <span>${((f.size || 0)/1024).toFixed(1)} KB</span>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function inferOutputKind(filename) {
+  if ((filename || "").endsWith(".xlsx")) return "excel";
+  if ((filename || "").includes("_raw_")) return "raw";
+  return "result";
+}
+
 async function viewFile(filename) {
   try {
+    const kind = inferOutputKind(filename);
+    if (kind === "excel") {
+      const link = document.createElement("a");
+      link.href = `/api/outputs/${encodeURIComponent(filename)}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
     const d = await api(`/api/outputs/${encodeURIComponent(filename)}`, null, "GET");
+    S.activeModalFile = { filename, kind, content: d.content || "" };
     id("modal-title").textContent = filename;
-    id("modal-content").textContent = d.content;
+    id("modal-content").textContent = d.content || "";
+    id("modal-rerun-llm").style.display = kind === "raw" ? "inline-flex" : "none";
+    id("modal-export-result").style.display = kind === "result" ? "inline-flex" : "none";
     id("modal").classList.add("open");
   } catch(e) {
     alert("無法讀取檔案：" + e.message);
@@ -973,9 +1555,52 @@ async function viewFile(filename) {
 }
 
 function closeModal(e) { if (e.target === id("modal")) closeModalDirect(); }
-function closeModalDirect() { id("modal").classList.remove("open"); }
+function closeModalDirect() {
+  id("modal").classList.remove("open");
+  S.activeModalFile = null;
+  id("modal-rerun-llm").style.display = "none";
+  id("modal-export-result").style.display = "none";
+}
 function copyModalContent() {
   navigator.clipboard.writeText(id("modal-content").textContent);
+}
+
+async function rerunLlmFromModal() {
+  if (!S.activeModalFile || S.activeModalFile.kind !== "raw") return;
+  try {
+    await resolveModelChain();
+    const { selectedModel } = getRunContext(true);
+    showSt("st-batch", "info", `使用 ${selectedModel.label} 重新處理 raw`);
+    const res = await api("/api/process", {
+      raw_text: S.activeModalFile.content,
+      system_prompt: id("process-prompt").value.trim(),
+      url: "",
+      timeout: S.timeout || 300,
+      model_name: selectedModel.model_id,
+      model_label: selectedModel.label,
+    });
+    if (res.error) throw new Error(res.error);
+    showLastResult(res.result, "", { modelName: selectedModel.model_id });
+    showSt("st-batch", "success", "Raw 重新執行 LLM 完成");
+  } catch(e) {
+    showSt("st-batch", "error", e.message);
+  }
+}
+
+async function exportFromModal() {
+  if (!S.activeModalFile || S.activeModalFile.kind !== "result") return;
+  try {
+    showSt("st-batch", "info", "正在將 result 重新 Export");
+    const res = await api("/api/export", {
+      processed_text: S.activeModalFile.content,
+      export_prompt: id("export-prompt").value.trim(),
+    });
+    if (res.error) throw new Error(res.error);
+    showLastResult(S.activeModalFile.content, res.output || "", { modelName: "history-result" });
+    showSt("st-batch", "success", "Result 重新 Export 完成");
+  } catch(e) {
+    showSt("st-batch", "error", e.message);
+  }
 }
 
 // ── Utilities ──────────────────────────────────────────────────────────
@@ -1015,6 +1640,7 @@ function setActive(stepId) {
   const el = id(stepId);
   el.classList.remove("done"); el.classList.add("active");
   el.scrollIntoView({ behavior:"smooth", block:"nearest" });
+  if (["step1", "step2", "step3"].includes(stepId)) setActiveNav(stepId);
 }
 function setDone(stepId) {
   const el = id(stepId);
@@ -1060,13 +1686,13 @@ function buildDownloadFilename(url, modelName, ext) {
 
 function copyEl(elId) {
   const el = id(elId);
-  const text = el.tagName === "TEXTAREA" ? el.value : el.textContent;
+  const text = el.tagName === "TEXTAREA" ? el.value : (el.dataset.raw || el.textContent);
   navigator.clipboard.writeText(text);
 }
 
 function downloadText(elId, filename) {
   const el = id(elId);
-  const text = el.tagName === "TEXTAREA" ? el.value : el.textContent;
+  const text = el.tagName === "TEXTAREA" ? el.value : (el.dataset.raw || el.textContent);
   const a = Object.assign(document.createElement("a"), {
     href: URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" })),
     download: filename,
@@ -1103,17 +1729,57 @@ async function loadPrompts() {
     if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
     const cnt = (d.prompts || []).length;
     id("prompt-count").textContent = cnt ? `${cnt} 個模板` : "";
+    if (sel.value) onPromptSelect();
   } catch(e) { console.warn("載入 prompt 清單失敗", e); }
 }
 
 async function onPromptSelect() {
   const filename = id("prompt-select").value;
-  if (!filename) return;
+  if (!filename) {
+    id("prompt-preview").value = "";
+    return;
+  }
   try {
     const d = await api(`/api/prompts/${encodeURIComponent(filename)}`, null, "GET");
     if (d.error) throw new Error(d.error);
     id("process-prompt").value = d.content;
+    id("prompt-preview").value = d.content;
+    id("prompt-preview").readOnly = true;
   } catch(e) { alert("載入模板失敗：" + e.message); }
+}
+
+function copyPromptPreview() {
+  navigator.clipboard.writeText(id("prompt-preview").value || id("process-prompt").value || "");
+}
+
+function togglePromptPreviewEdit() {
+  const preview = id("prompt-preview");
+  preview.readOnly = !preview.readOnly;
+  if (!preview.value) preview.value = id("process-prompt").value;
+  if (!preview.readOnly) preview.focus();
+}
+
+async function savePromptFromPreview(overwriteCurrent) {
+  const content = id("prompt-preview").value.trim();
+  const current = id("prompt-select").value;
+  const nameInput = id("prompt-new-name").value.trim();
+  const filename = overwriteCurrent ? current : nameInput;
+  if (!filename) { alert(overwriteCurrent ? "請先選擇要覆蓋的 Prompt" : "請填寫新 Prompt 檔名"); return; }
+  if (!content) { alert("Prompt 內容不可為空"); return; }
+  if (overwriteCurrent && !confirm(`確定覆蓋「${current}」？`)) return;
+  try {
+    const normalized = filename.endsWith(".md") ? filename : `${filename}.md`;
+    const d = await api("/api/prompts", { filename: normalized, content, overwrite: overwriteCurrent });
+    if (d.error) throw new Error(d.error);
+    await loadPrompts();
+    id("prompt-select").value = d.filename || normalized;
+    id("process-prompt").value = content;
+    id("prompt-preview").value = content;
+    id("prompt-preview").readOnly = true;
+    id("prompt-new-name").value = "";
+  } catch(e) {
+    alert("儲存 Prompt 失敗：" + e.message);
+  }
 }
 
 async function savePromptOverwrite() {
@@ -1192,6 +1858,9 @@ async function createNewPrompt() {
 }
 
 // ── Init ───────────────────────────────────────────────────────────────
+setTheme(localStorage.getItem("gitlab_ui_theme") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+applyFontSize(localStorage.getItem("gitlab_ui_font_size") || "M");
+initSectionObserver();
 // Restore remembered Project ID from localStorage
 (function restoreProjectId() {
   const saved = localStorage.getItem("gitlab_project_id");

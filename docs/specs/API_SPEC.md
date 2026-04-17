@@ -1,7 +1,7 @@
 # API 規格書 — GitLab Issue 整理工具
 
-**對應版本：v1.1.2**  
-**最後更新：2026-04-10**
+**對應版本：v1.2.0**
+**最後更新：2026-04-17**
 
 ---
 
@@ -24,11 +24,14 @@
 - 需存取 GitLab API 的端點，透過 request body 傳入 `token`
 - token 僅用於當次請求，不得寫入 log（詳見 `docs/security/SECURITY.md`）
 
-### 2.4 共同成功回應原則
+### 2.4 GitLab API 連線
+- 後端呼叫 GitLab REST API 時會忽略 `HTTP_PROXY` / `HTTPS_PROXY` 等環境代理設定，避免內網 GitLab 位址被導向本機或外部代理。
+
+### 2.5 共同成功回應原則
 - 成功回應由各端點定義
 - 需包含可被前端直接使用的關鍵欄位，例如 `saved_path`、`count`
 
-### 2.5 統一錯誤回應格式
+### 2.6 統一錯誤回應格式
 
 ```json
 {
@@ -260,7 +263,7 @@ Response：
 ```
 
 ### 3.9 `GET /api/outputs`
-- 用途：列出歷史存檔（raw + results）
+- 用途：列出歷史存檔（raw + results + excel）
 
 Response：
 
@@ -271,9 +274,17 @@ Response：
     "size": 1024,
     "mtime": "2026-04-10 09:15:00",
     "kind": "result"
+  },
+  {
+    "filename": "excel_20260417_120000_issues.xlsx",
+    "size": 4096,
+    "mtime": "2026-04-17 12:00:00",
+    "kind": "excel"
   }
 ]
 ```
+
+`kind` 可能值：`raw` / `result` / `excel`。
 
 ### 3.10 `GET /api/outputs/<filename>`
 - 用途：下載或查看單筆存檔

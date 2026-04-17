@@ -2,6 +2,34 @@
 
 ---
 
+## v1.2.0 — AI 工作台化
+**更新日期：2026-04-17**
+
+### 新增與調整
+
+- 前端改為入口式連線設定，設定完成後進入一頁式工作台
+- 工作台新增側邊欄導覽，可快速跳轉 Issue 工作區、處理進度與結果區塊
+- 歷史存檔與 Prompt Review 改為側邊欄開啟的彈出工具面板，不再固定佔用主頁底部空間
+- Header 新增亮色 / 暗色主題切換與 `S / M / L / XL` 全域字體大小切換，偏好會保存於 `localStorage`
+- LLM 整理結果改為依 markdown heading 分段卡片化顯示，提升長內容可讀性
+- LLM 結果 parser 解析失敗時會 fallback 顯示原始純文字，避免內容遺失
+- 調整 Issue list、狀態膠囊、標籤與歷史列表的字體層級
+- 建立前端 `issueJobs` state model，支援每筆 Issue 單獨執行 `Scrape`、`Run LLM`、`Export`
+- 新增 `Run All`、`Run Scrape Only`、`Run LLM Only` 三種批次模式
+- Prompt Review 面板可複製、切換編輯、另存新模板或覆蓋目前模板
+- outputs 歷史存檔支援檔名搜尋與 raw / result / excel 篩選
+- raw 預覽可重新執行 LLM，result 預覽可重新 Export
+- `/api/outputs` 現在會列出 Excel 檔案 metadata；Excel 仍透過既有下載端點取得
+- GitLab API 請求會忽略系統代理設定，避免內網 GitLab 被錯誤導向 `127.0.0.1` proxy
+- 重新調整工作台空間分配：Issue 清單縮為緊湊可操作區，LLM 結果取得主要閱讀空間，歷史與 Prompt 僅在需要時彈出
+
+### 安全與相容性
+
+- 本版維持既有核心處理端點，批次流程仍可執行 `Scrape → LLM → Export`
+- `localStorage` 僅保存 UI 主題、字體偏好與既有 Project ID 偏好，不保存 API Token 或密碼
+
+---
+
 ## v1.1.2 — 文件反向同步與模型單選整理
 **更新日期：2026-04-10**
 

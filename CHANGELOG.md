@@ -4,6 +4,27 @@
 
 ---
 
+## v1.2.0
+
+### 2026-04-17
+
+| # | 日期 | 版本 | 類型 | 影響檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 093 | 2026-04-17 | v1.2.0 | feat | `index.html` | Phase 1 工作台化：新增三欄 layout，將連線與輸入、Issue 工作區、結果與歷史輸出並列呈現 |
+| 094 | 2026-04-17 | v1.2.0 | feat | `index.html` | Header 新增 `S / M / L / XL` 全域字體大小控制，偏好保存於 `localStorage` 且不保存 Token |
+| 095 | 2026-04-17 | v1.2.0 | feat | `index.html` | 新增 `parseLlmSections` 與 LLM 結果卡片化渲染，解析失敗時 fallback 顯示原始純文字 |
+| 096 | 2026-04-17 | v1.2.0 | style | `index.html` | 調整 Issue list、狀態、標籤、歷史列表與結果區字體層級 |
+| 097 | 2026-04-17 | v1.2.0 | docs | `app.py` / `AGENTS.md` / `docs/` / `RELEASE_NOTES.md` / `CHANGELOG.md` | 版本號更新至 v1.2.0 並同步 Phase 1 工作台閱讀體驗文件 |
+| 098 | 2026-04-17 | v1.2.0 | feat | `index.html` | 建立 `issueJobs` 前端 state model，支援單筆 `Scrape`、`Run LLM`、`Export` 操作與狀態渲染 |
+| 099 | 2026-04-17 | v1.2.0 | feat | `index.html` | 新增 `Run All`、`Run Scrape Only`、`Run LLM Only` 批次模式，未 scrape 的 LLM-only 項目會標記略過 |
+| 100 | 2026-04-17 | v1.2.0 | feat | `index.html` | 新增 Prompt Preview、複製、可編輯切換、另存新模板與覆蓋目前模板 |
+| 101 | 2026-04-17 | v1.2.0 | feat | `app.py` / `index.html` | `/api/outputs` 列出 Excel metadata，前端新增 outputs 搜尋、kind 篩選、raw 重新 LLM 與 result 重新 Export |
+| 102 | 2026-04-17 | v1.2.0 | docs | `docs/product/PRD.md` / `docs/specs/API_SPEC.md` / `RELEASE_NOTES.md` / `CHANGELOG.md` | 同步 Phase 2 到 Phase 4A 工作台功能與 outputs API 說明 |
+| 103 | 2026-04-17 | v1.2.0 | fix | `app.py` | GitLab API 請求改用忽略環境代理的 Session，避免內網 GitLab 被導向本機 proxy 而連線失敗 |
+| 104 | 2026-04-17 | v1.2.0 | style | `index.html` | 重新調整工作台比例：左側固定控制欄，右側上方為緊湊可操作 Issue 清單，主要結果區與歷史/Prompt 區分層呈現 |
+| 105 | 2026-04-17 | v1.2.0 | style | `index.html` / `docs/product/PRD.md` / `docs/quality/NFR.md` / `docs/security/SECURITY.md` / `RELEASE_NOTES.md` | 改為入口式連線設定、一頁式側邊欄導覽與亮暗主題切換，並同步 UI 偏好與安全規則文件 |
+| 106 | 2026-04-17 | v1.2.0 | style | `index.html` / `docs/product/PRD.md` / `RELEASE_NOTES.md` / `CHANGELOG.md` | 歷史存檔與 Prompt Review 改為側邊欄開啟的彈出工具面板，移除主工作台底部固定區塊 |
+
 ## v1.1.2
 
 ### 2026-04-10

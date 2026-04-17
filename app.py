@@ -1,10 +1,10 @@
 """
 app.py — Flask 後端（Selenium 爬蟲 + Gemini CLI subprocess）
 新增：批次排程、自動存檔、統一輸出結構
-版本：v1.1.2
+版本：v1.2.0
 """
 
-APP_VERSION = "v1.1.2"
+APP_VERSION = "v1.2.0"
 
 import re
 import time
@@ -163,9 +163,23 @@ def save_output(content: str, kind: str, url: str, model_name: str = None) -> st
     return str(filepath)
 
 
+def gitlab_api_get(req_lib, url: str, **kwargs):
+    """GitLab 內網 API 請求需忽略系統代理，避免被導到本機 proxy。"""
+    session = req_lib.Session()
+    session.trust_env = False
+    try:
+        return session.get(url, **kwargs)
+    finally:
+        session.close()
+
+
 def list_outputs() -> list:
-    """列出 raw/ 和 results/ 下所有 .txt 檔，依時間倒序。"""
-    all_files = list(OUTPUT_RAW.glob("*.txt")) + list(OUTPUT_RESULTS.glob("*.txt"))
+    """列出 raw、results、excel 下所有輸出檔，依時間倒序。"""
+    all_files = (
+        list(OUTPUT_RAW.glob("*.txt"))
+        + list(OUTPUT_RESULTS.glob("*.txt"))
+        + list(OUTPUT_EXCEL.glob("*.xlsx"))
+    )
     all_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     result = []
     for f in all_files:
@@ -173,7 +187,7 @@ def list_outputs() -> list:
             "filename": f.name,
             "size":     f.stat().st_size,
             "mtime":    datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-            "kind":     "raw" if f.parent.name == "raw" else "result",
+            "kind":     "raw" if f.parent.name == "raw" else "excel" if f.parent.name == "excel" else "result",
         })
     return result
 
@@ -723,8 +737,12 @@ def scrape_issue_api(base_url: str, project_id: int, issue_iid: int,
     api_base = f"{base_url}/api/v4/projects/{project_id}"
 
     # ── 取 Issue 主體 ──────────────────────────────────────────────────────
-    issue_resp = req_lib.get(f"{api_base}/issues/{issue_iid}",
-                             headers=headers, timeout=15)
+    issue_resp = gitlab_api_get(
+        req_lib,
+        f"{api_base}/issues/{issue_iid}",
+        headers=headers,
+        timeout=15,
+    )
     if issue_resp.status_code == 401:
         raise RuntimeError("401 未授權，請確認 API Token 有效")
     if issue_resp.status_code == 404:
@@ -742,7 +760,8 @@ def scrape_issue_api(base_url: str, project_id: int, issue_iid: int,
     all_notes = []
     page = 1
     while True:
-        notes_resp = req_lib.get(
+        notes_resp = gitlab_api_get(
+            req_lib,
             f"{api_base}/issues/{issue_iid}/notes",
             params={"per_page": 100, "sort": "asc", "page": page},
             headers=headers, timeout=15,
@@ -1234,7 +1253,7 @@ def _fetch_issues_from_api(
         while True:
             p = {**params, "page": page, "per_page": 100}
             try:
-                resp = req_lib.get(api_base, params=p, headers=headers, timeout=15)
+                resp = gitlab_api_get(req_lib, api_base, params=p, headers=headers, timeout=15)
             except Exception as e:
                 raise RuntimeError(f"GitLab API 連線失敗：{e}")
 
@@ -1359,7 +1378,7 @@ def api_preview_issues():
             continue
         iid = int(m_iid.group(1))
         try:
-            resp = req_lib.get(f"{api_base}/{iid}", headers=headers, timeout=10)
+            resp = gitlab_api_get(req_lib, f"{api_base}/{iid}", headers=headers, timeout=10)
             if resp.status_code == 401:
                 return jsonify({"error": "401 未授權，請確認 API Token 有效"}), 401
             if resp.status_code == 404:
