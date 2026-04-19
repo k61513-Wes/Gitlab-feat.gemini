@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>連線設定 — GitLab Issue 管理工具 v1.2.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body class="workspace-ready login-page">
+
+<header>
+    <div class="logo">GL</div>
+    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.1</span></h1>
+    <div class="sub">連線設定</div>
+    <div class="font-control">
+        字體
+        <div class="font-segment">
+            <button onclick="setFontSize('S')" data-font-size="S">S</button>
+            <button onclick="setFontSize('M')" data-font-size="M" class="active">M</button>
+            <button onclick="setFontSize('L')" data-font-size="L">L</button>
+            <button onclick="setFontSize('XL')" data-font-size="XL">XL</button>
+        </div>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">亮色</button>
+</header>
+
+<div class="workspace-frame">
+    <aside class="sidebar">
+        <div class="sidebar-title">Views</div>
+        <nav class="nav-links">
+            <a class="nav-link" href="/">📊 Dashboard</a>
+            <a class="nav-link" href="/issuearrange">📝 Issue 整理</a>
+            <a class="nav-link active" href="/login">⚙️ 連線設定</a>
+        </nav>
+    </aside>
+
+    <main class="layout" id="main-scroll">
+        <div class="main-col" style="display:flex;flex-direction:column;gap:18px;padding-top:8px">
+            <section class="step active" id="step-config">
+                <div class="step-header">
+                    <div>
+                        <div class="step-title">連線設定</div>
+                        <div class="step-sub">設定 API Token 或備用帳號</div>
+                    </div>
+                </div>
+                <div class="step-body" style="display:flex;">
+                    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-family:var(--mono);font-size:12px;color:var(--text-dim);line-height:1.55;margin-bottom:10px;" id="sidebar-status">
+                        當前狀態：尚未設定<br>Project —<br>Timeout —<br>Model —
+                    </div>
+
+                    <div class="field">
+                        <label>連接模式與模型</label>
+                        <div class="hint" style="margin-bottom:8px">
+                            優先使用 <strong>GitLab API</strong>（需 Project ID + Token），若無則降級使用 <strong>Selenium</strong> 模擬網頁登入（需帳號密碼）。
+                        </div>
+                    </div>
+
+                    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;margin-bottom:6px">
+                        <div style="font-family:var(--mono);font-size:var(--font-size-tag);color:var(--text-dim);text-transform:uppercase;margin-bottom:-4px">GitLab API 模式（推薦）</div>
+                        <div class="field-row">
+                            <div class="field">
+                                <label for="cfg-project-id">Project ID (若有自帶網址輸入可免)</label>
+                                <input type="text" id="cfg-project-id" placeholder="例如：2135">
+                                <label style="display:flex;align-items:center;gap:6px;margin-top:2px;cursor:pointer">
+                                    <input type="checkbox" id="cfg-remember-pid" style="width:auto">
+                                    <span style="font-size:10px;text-transform:none">自動記住 Project ID</span>
+                                </label>
+                            </div>
+                            <div class="field">
+                                <label for="cfg-token">Personal Access Token</label>
+                                <input type="password" id="cfg-token" placeholder="glpat-...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;margin-bottom:6px">
+                        <div style="font-family:var(--mono);font-size:var(--font-size-tag);color:var(--text-dim);text-transform:uppercase;margin-bottom:-4px">Selenium 模式（備用）</div>
+                        <div class="field-row">
+                            <div class="field">
+                                <label for="cfg-user">GitLab 帳號</label>
+                                <input type="text" id="cfg-user" placeholder="如果是內網可能是 Email 或工號">
+                            </div>
+                            <div class="field">
+                                <label for="cfg-pass">GitLab 密碼</label>
+                                <input type="password" id="cfg-pass">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field">
+                            <label for="cfg-timeout">Gemini CLI 逾時 (秒)</label>
+                            <input type="text" id="cfg-timeout" value="300">
+                        </div>
+                        <div class="field">
+                            <label>操作</label>
+                            <div class="btn-row">
+                                <button class="btn-ghost" id="btn-health" onclick="checkHealth()">檢查 Gemini CLI</button>
+                                <button class="btn-primary" onclick="saveConfig()" style="flex:1;justify-content:center">儲存並進入 Dashboard</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="st-config" class="status hidden"></div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<script src="static/ui.js"></script>
+<script src="static/app.js"></script>
+<script>
+// 若已有 Token（上次登入過），直接跳轉 Dashboard（但只限從首頁進來時，若是主動點擊 /login 則不跳轉）
+const _existingToken = sessionStorage.getItem("gitlab_token");
+const _existingPid   = localStorage.getItem("gitlab_project_id");
+const _isRootPath    = window.location.pathname === '/' || window.location.pathname === '/index.html';
+
+if (_existingToken && _existingPid && _isRootPath) {
+    // 同步到 S，再跳轉
+    if (window.S) { S.token = _existingToken; S.projectId = _existingPid; }
+    window.location.replace('/dashboard');
+}
+</script>
+</body>
+</html>
+

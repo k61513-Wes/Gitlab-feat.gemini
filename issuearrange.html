@@ -2,18 +2,16 @@
 <html lang="zh-TW" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <title>GitLab Issue 整理工具 v1.2.1</title>
+    <title>Issue 整理 — GitLab Issue 管理工具 v1.2.1</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/style.css">
-    <!-- Chart.js 輕量圖表庫 -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 </head>
 <body class="workspace-ready">
 
 <header>
     <div class="logo">GL</div>
-    <h1>GitLab Issue 整理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.1</span></h1>
+    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.1</span></h1>
     <div class="sub">LLM Workbench</div>
     <div class="font-control">
         字體
@@ -31,117 +29,19 @@
     <aside class="sidebar">
         <div class="sidebar-title">Views</div>
         <nav class="nav-links">
-            <button class="nav-link" id="nav-dashboard" onclick="switchMainView('dashboard')">📊 Dashboard</button>
-            <button class="nav-link active" id="nav-issue-tool" onclick="switchMainView('issue-tool')">📝 Issue 整理</button>
+            <a class="nav-link" href="/">📊 Dashboard</a>
+            <a class="nav-link active" href="/issuearrange">📝 Issue 整理</a>
         </nav>
-
         <div class="sidebar-spacer"></div>
-
         <div class="sidebar-title">Tools</div>
         <div class="sidebar-tools">
             <button class="btn-ghost" onclick="openToolPanel('history')">歷史存檔</button>
             <button class="btn-ghost" onclick="openToolPanel('prompt')">Prompt 看板</button>
-            <button class="btn-ghost" onclick="switchMainView('issue-tool'); resetConfigGate()"><span style="color:var(--text-dim);font-size:14px;margin-right:2px">⚙</span> 連線設定</button>
+            <a class="btn-ghost" href="/login" style="display:block;text-decoration:none;color:inherit;text-align:left"><span style="color:var(--text-dim);font-size:14px;margin-right:2px">⚙</span> 連線設定</a>
         </div>
     </aside>
 
     <main class="layout" id="main-scroll">
-        <!-- 面板: Dashboard -->
-        <div id="view-dashboard" class="main-col" style="display:none; gap:18px; flex-direction:column">
-            <section class="step active done" style="border-color:var(--border-hi)">
-                <div class="step-header">
-                    <div>
-                        <div class="step-title" style="font-size:18px">專案儀表板 (Dashboard)</div>
-                        <div class="step-sub">輸入專案網址以載入統計資料</div>
-                    </div>
-                </div>
-                <div class="step-body" style="display:flex;">
-                    <div class="field-row">
-                        <div class="field" style="flex:1">
-                            <label>Repo 網址或 Project ID</label>
-                            <input type="text" id="dash-repo-url" placeholder="例如：https://gitlab.example.com/group/project 或 1234">
-                        </div>
-                        <div class="field" style="max-width:180px">
-                            <label>&nbsp;</label>
-                            <button class="btn-primary" onclick="loadDashboard()">載入資料</button>
-                        </div>
-                    </div>
-                    <div id="dash-status" class="status hidden"></div>
-                </div>
-            </section>
-
-            <div id="dash-content" style="display:none; flex-direction:column; gap:18px;">
-                <div class="field-row">
-                    <div class="field">
-                        <label>Milestone 篩選</label>
-                        <select id="dash-milestone" onchange="renderDashboardStats()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);padding:9px 12px;">
-                            <option value="all">不限 Milestone</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>Priority 篩選</label>
-                        <select id="dash-priority" onchange="renderDashboardStats()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);padding:9px 12px;">
-                            <option value="all">不限</option>
-                            <option value="High">Priority::High</option>
-                            <option value="Medium">Priority::Medium</option>
-                            <option value="Low">Priority::Low</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label>Assignee 篩選</label>
-                        <select id="dash-assignee" onchange="renderDashboardStats()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);padding:9px 12px;">
-                            <option value="all">全部人員</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                    <!-- Issue 總數 -->
-                    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:10px">
-                        <div style="font-family:var(--mono);font-size:12px;color:var(--text-dim)">總 Issue 數量</div>
-                        <div style="font-size:36px;font-weight:600;line-height:1" id="dash-val-total">0</div>
-                        <div style="display:flex;gap:16px;margin-top:8px">
-                            <div><span style="color:var(--green);font-size:12px">開啟中:</span> <span id="dash-val-opened" style="font-family:var(--mono);font-size:14px">0</span></div>
-                            <div><span style="color:var(--text-dim);font-size:12px">已關閉:</span> <span id="dash-val-closed" style="font-family:var(--mono);font-size:14px">0</span></div>
-                        </div>
-                    </div>
-
-                    <!-- 本週狀態 -->
-                    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:10px">
-                        <div style="font-family:var(--mono);font-size:12px;color:var(--text-dim)">本週動態 (最近 7 天)</div>
-                        <div style="display:flex; gap:20px; flex:1; align-items:center">
-                            <div style="display:flex;flex-direction:column;flex:1">
-                                <div style="font-size:12px;color:var(--amber)">新建立</div>
-                                <div style="font-size:28px;font-weight:600;line-height:1.2" id="dash-val-week-new">0</div>
-                            </div>
-                            <div style="width:1px;background:var(--border);height:100%"></div>
-                            <div style="display:flex;flex-direction:column;flex:1">
-                                <div style="font-size:12px;color:var(--text-dim)">已關閉</div>
-                                <div style="font-size:28px;font-weight:600;line-height:1.2" id="dash-val-week-closed">0</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Milestone/Sprint 區間走勢圖 -->
-                <div id="dash-chart-wrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;display:none;flex-direction:column;gap:12px">
-                    <div style="display:flex;align-items:center;justify-content:space-between">
-                        <div style="font-family:var(--mono);font-size:12px;color:var(--text-dim)" id="dash-chart-label">Issue 趨勢圖</div>
-                        <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)" id="dash-chart-range"></div>
-                    </div>
-                    <div style="position:relative;height:240px">
-                        <canvas id="dash-chart"></canvas>
-                    </div>
-                </div>
-
-                <div style="text-align:center">
-                    <button class="btn-ghost" id="btn-dash-load-more" onclick="loadMoreDashboard()" style="display:none;">⬇︎ 繼續載入更多資料</button>
-                    <div id="dash-footer-status" style="font-size:12px;color:var(--text-dim);margin-top:10px;font-family:var(--mono)"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 面板: Issue 整理 -->
         <div id="view-issue-tool" class="main-col" style="display:contents">
             <!-- 設定 Step -->
             <section class="step" id="step-config">
@@ -160,8 +60,8 @@
                     <div class="field">
                         <label>連接模式與模型</label>
                         <div class="hint" style="margin-bottom:8px">
-                            優先使用 <strong>GitLab API</strong>（需 Project ID + Token），若無則降級使用 <strong>Selenium</strong> 模擬網頁登入（需帳號密碼）。<br>
-                            Gemini CLI 若不可用，請確認是否安裝（<code style="color:var(--text-bright);font-size:11px;background:rgba(255,255,255,0.08);padding:0 3px;border-radius:2px">npm i -g @google/gemini-cli</code>）或指派環境變數 <code style="color:var(--text-bright);font-size:11px;background:rgba(255,255,255,0.08);padding:0 3px;border-radius:2px">GEMINI_CLI_PATH</code>。
+                            優先使用 <strong>GitLab API</strong>（需 Project ID + Token），若無則降級使用 <strong>Selenium</strong>。<br>
+                            Gemini CLI 若不可用，請確認是否安裝或設定 <code style="color:var(--text-bright);font-size:11px;background:rgba(255,255,255,0.08);padding:0 3px;border-radius:2px">GEMINI_CLI_PATH</code>。
                         </div>
                     </div>
 
@@ -240,7 +140,7 @@
                     <div id="st-load" class="status hidden"></div>
                 </div>
             </section>
-            
+
             <div class="connector"></div>
 
             <!-- Step 2: Process Queue -->
@@ -261,7 +161,7 @@
                             <div class="hint" style="margin-top:6px;font-size:10.5px">若模型選項為空，請先在連線設定進行「檢查 Gemini CLI」。不接受 Flash 系列模型。</div>
                         </div>
                     </div>
-                    
+
                     <div class="btn-row" style="margin-top:6px;padding-bottom:12px;border-bottom:1px solid var(--border)">
                         <button class="btn-primary" id="btn-start" onclick="startBatch()">🚀 執行全部階段 (Scrape+LLM+Export)</button>
                         <button class="btn-ghost" id="btn-scrape-only" onclick="runBatch('scrape')">執行 Scrape</button>
@@ -270,14 +170,14 @@
                         <div style="flex:1"></div>
                         <button class="btn-excel" id="btn-excel" onclick="exportExcel()">⬇︎ 批次匯出 Excel</button>
                     </div>
-                    
+
                     <div id="st-batch" class="status hidden" style="margin-bottom:8px"></div>
                     <div class="queue-list" id="queue-list">
                         <!-- queue items generated by JS -->
                     </div>
                 </div>
             </section>
-            
+
             <div class="connector"></div>
 
             <!-- Step 3: Result -->
@@ -294,7 +194,6 @@
                     <div id="last-result-empty" style="padding:40px 0;text-align:center;color:var(--text-dim);font-family:var(--mono);font-size:var(--font-size-tag)">
                         (尚無結果，請先在上一步選擇卡片或執行處理)
                     </div>
-                    
                     <div id="last-result-wrap">
                         <div class="result-pane">
                             <div class="out-header">
@@ -352,7 +251,6 @@
             <button class="modal-close" onclick="closeToolPanelDirect()">&times;</button>
         </div>
         <div class="tool-panel-content" id="side-col" data-active-panel="history">
-            <!-- 歷史區 -->
             <div class="history-panel">
                 <div class="history-tools">
                     <input type="text" id="history-search" placeholder="檔名搜尋..." oninput="renderHistoryList()">
@@ -363,14 +261,10 @@
                         <option value="excel">Excel</option>
                     </select>
                 </div>
-                <div class="history-list" id="history-list">
-                    <!-- history items generated by JS -->
-                </div>
+                <div class="history-list" id="history-list"></div>
             </div>
-            
-            <!-- Prompt Review 區 -->
+
             <div class="prompt-preview">
-                <!-- 狀態列 -->
                 <div class="prompt-toolbar">
                     <label>依模板套用</label>
                     <select id="prompt-select" onchange="onPromptSelect()"></select>
@@ -378,8 +272,6 @@
                     <button class="btn-ghost" style="padding:4px 8px;font-size:11px;color:rgba(224,92,92,0.8)" onclick="deleteCurrentPrompt()" title="刪除選定模版">🗑️ 刪除</button>
                     <div class="prompt-count" id="prompt-count"></div>
                 </div>
-
-                <!-- Step2 Prompt 編輯區 (隱藏實際用來遞交的 field) -->
                 <div style="display:none">
                     <textarea id="process-prompt">
 你是技術專案助理，請閱讀以下 GitLab Issue，整理成繁體中文的結構化摘要。
@@ -411,7 +303,6 @@
                     <button class="btn-ghost btn-sm" onclick="togglePromptPreviewEdit()">✏️ 編輯草稿</button>
                 </div>
                 <textarea id="prompt-preview" class="out-area" readonly></textarea>
-                
                 <div class="prompt-preview-actions">
                     <button class="btn-primary" onclick="savePromptOverwrite()">覆蓋儲存此模板</button>
                     <div style="width:1px;height:24px;background:var(--border);margin:0 4px"></div>
@@ -419,10 +310,7 @@
                     <button class="btn-ghost" onclick="savePromptFromPreview(false)">另存新模板</button>
                 </div>
                 <div class="hint">編輯後請點擊儲存，方能套用於後續的批次處理中。</div>
-
                 <div class="step-divider" style="margin:20px 0"></div>
-
-                <!-- Export Prompt 編輯區 (目前無名儲存，暫維持現狀) -->
                 <div class="out-header">
                     <div class="out-label">Export Prompt (轉換階段)</div>
                 </div>
@@ -458,9 +346,15 @@
     </div>
 </div>
 
-<!-- JS -->
 <script src="static/ui.js"></script>
 <script src="static/app.js"></script>
-
+<script>
+// issuearrange 頁：覆蓋 switchMainView 改為頁面跳轉
+window.switchMainView = function(v) {
+    if (v === 'dashboard') window.location.href = '/';
+    else if (v === 'issue-tool') { /* 已在此頁，不動 */ }
+    else if (v === 'login') window.location.href = '/login';
+};
+</script>
 </body>
 </html>

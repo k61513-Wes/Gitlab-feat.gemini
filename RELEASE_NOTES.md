@@ -2,6 +2,16 @@
 
 ---
 
+## v1.2.1 — 架構模組化重構
+**更新日期：2026-04-19**
+
+### 系統重構
+- 將過長的 `app.py` 拆分為 `config.py`、`gemini_cli.py`、`scraper.py`、`excel_utils.py` 及獨立的 `routes`，以 Blueprint 註冊路由。
+- 將 `index.html` 前端資源分離為 `static/style.css`、`static/ui.js` 與 `static/app.js`。
+- 本次純為程式碼結構優化，無任何功能與 API 變更。
+
+---
+
 ## v1.2.0 — AI 工作台化
 **更新日期：2026-04-17**
 

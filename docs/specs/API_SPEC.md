@@ -1,7 +1,7 @@
 # API 規格書 — GitLab Issue 整理工具
 
-**對應版本：v1.2.0**
-**最後更新：2026-04-17**
+**對應版本：v1.2.1**
+**最後更新：2026-04-19**
 
 ---
 
@@ -449,6 +449,99 @@ Response：
 ## 補充內容
 ...
 ```
+
+---
+
+### 3.16 `POST /api/dashboard/data`
+- 用途：載入指定 Repo 或 Project ID 的 Issue 列表與 Milestone 資料，供 Dashboard 頁使用
+- 備註：支援分頁載入，每次最多 `target_count` 筆，回傳 `has_more` 與 `next_page_offset` 供前端決定是否繼續載入
+
+Request：
+
+```json
+{
+  "repo_url": "http://172.22.x.x:8000/group/subgroup/project",
+  "project_id": 123,
+  "private_token": "glpat-xxxxx",
+  "target_count": 500,
+  "page_offset": 1
+}
+```
+
+| 欄位 | 必填 | 說明 |
+|------|------|------|
+| `repo_url` | 條件必 | Repo 網址，後端自動解析 Project ID |
+| `project_id` | 條件必 | 直接指定 Project ID；若提供 `repo_url` 且解析失敗則作為備用 |
+| `private_token` | 必 | GitLab Private Access Token（`api` 或 `read_api` 權限） |
+| `target_count` | 否 | 本次載入筆數，預設 500 |
+| `page_offset` | 否 | 起始頁數，預設 1，繼續載入時傳入上次回傳的 `next_page_offset` |
+
+> `repo_url` 與 `project_id` 至少提供一個。
+
+Response：
+
+```json
+{
+  "project_id": 123,
+  "base_url": "http://172.22.x.x:8000",
+  "issues": [
+    {
+      "iid": 724,
+      "title": "[Label Page] object detection缺少支援SAM",
+      "web_url": "http://172.22.x.x:8000/group/.../issues/724",
+      "state": "opened",
+      "created_at": "2026-03-01T10:00:00Z",
+      "closed_at": null,
+      "labels": ["Priority::High", "bug"],
+      "milestone": {
+        "title": "APT Sprint 20",
+        "id": 45,
+        "start_date": "2026-04-14",
+        "due_date": "2026-04-27",
+        "state": "active"
+      },
+      "author": "張三",
+      "assignees": ["李四", "王五"],
+      "merge_requests_count": 1
+    }
+  ],
+  "milestones": [
+    {
+      "title": "APT Sprint 20",
+      "id": 45,
+      "start_date": "2026-04-14",
+      "due_date": "2026-04-27",
+      "state": "active"
+    }
+  ],
+  "next_page_offset": 6,
+  "has_more": true
+}
+```
+
+**Milestone 資料來源策略（三段避免遺漏）：**
+
+| 策略 | 說明 |
+|------|------|
+| 策略一 | 從已載入的 issues 結果中去重萃取 milestone |
+| 策略二 | 呼叫 `/projects/{id}/milestones`（project-level） |
+| 策略三 | 在專案的 namespace 為 group 時，額外呼叫 `/groups/{path}/milestones`（含父層） |
+
+**回傳的 Issue 欄位說明：**
+
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| `iid` | int | Issue 內部編號 |
+| `title` | string | Issue 標題 |
+| `web_url` | string | GitLab 頁面網址 |
+| `state` | string | `opened` / `closed` |
+| `created_at` | ISO 8601 | 建立時間 |
+| `closed_at` | ISO 8601 / null | 關閉時間 |
+| `labels` | string[] | 標籤列表 |
+| `milestone` | object / null | 包含 title, id, start_date, due_date, state |
+| `author` | string | 建立者姓名 |
+| `assignees` | string[] | 指派人姓名列表 |
+| `merge_requests_count` | int | 綁定 MR 數量，前端用於顯示「有 MR」狀態 |
 
 ---
 

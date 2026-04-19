@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard — GitLab Issue 管理工具 v1.2.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <style>
+        /* ── Dashboard 統計卡片 ── */
+        .ds-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .ds-card { background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:10px; }
+        .ds-card-label { font-family:var(--mono);font-size:12px;color:var(--text-dim); }
+        .ds-card-value { font-size:36px;font-weight:600;line-height:1; }
+
+        /* ── Priority / Assignee 分布卡 ── */
+        .ds-breakdown { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .ds-breakdown-card { background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px; }
+        .ds-breakdown-title { font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;margin-bottom:10px;letter-spacing:.5px; }
+        .ds-breakdown-row { display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:6px;cursor:pointer;transition:background .15s; }
+        .ds-breakdown-row:hover { background:var(--bg3); }
+        .ds-breakdown-row.active { background:rgba(91,182,255,0.12);border:1px solid rgba(91,182,255,0.3); }
+        .ds-breakdown-name { flex:1;font-size:13px; }
+        .ds-breakdown-bar-wrap { width:80px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden; }
+        .ds-breakdown-bar { height:100%;border-radius:3px;transition:width .3s; }
+        .ds-breakdown-count { font-family:var(--mono);font-size:12px;color:var(--text-bright);min-width:28px;text-align:right; }
+
+        /* Priority 顏色 */
+        .priority-high  { color:#e06060; }
+        .priority-medium{ color:#e0a040; }
+        .priority-low   { color:#60b060; }
+        .bar-high  { background:#e06060; }
+        .bar-medium{ background:#e0a040; }
+        .bar-low   { background:#60b060; }
+        .bar-assignee { background:rgba(91,182,255,0.7); }
+
+        /* ── Issue 列表面板 ── */
+        #dash-issue-panel { background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;display:none;flex-direction:column;gap:12px; }
+        .dash-issue-panel-header { display:flex;align-items:center;justify-content:space-between; }
+        .dash-issue-panel-title { font-family:var(--mono);font-size:12px;color:var(--text-dim); }
+        .dash-issue-item { display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s; }
+        .dash-issue-item:hover { border-color:rgba(91,182,255,0.5); }
+        .dash-issue-iid { font-family:var(--mono);font-size:11px;color:var(--text-dim);min-width:36px; }
+        .dash-issue-title { flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+        .dash-issue-state { font-size:10px;padding:2px 7px;border-radius:3px;white-space:nowrap; }
+        .dash-issue-type { font-size:10px; padding:2px 6px; border-radius:4px; font-weight:600; font-family:var(--mono); margin-right:8px; }
+        .dash-issue-type.bug { background: rgba(224,96,96,0.15); color: #ff6b6b; border: 1px solid rgba(224,96,96,0.3); }
+        .dash-issue-type.suggestion { background: rgba(160,96,224,0.15); color: #c48df5; border: 1px solid rgba(160,96,224,0.3); }
+        .dash-issue-type.feature { background: rgba(96,160,224,0.15); color: #6bb3ff; border: 1px solid rgba(96,160,224,0.3); }
+        .dash-issue-type.enhancement { background: rgba(50,200,200,0.15); color: #4dc; border: 1px solid rgba(50,200,200,0.3); }
+        .dash-issue-state.opened { background:rgba(61,214,140,0.12);color:var(--green); }
+        .dash-issue-state.closed { background:rgba(110,110,136,0.2);color:var(--text-dim); }
+        .dash-issue-open-btn { font-size:11px;padding:3px 10px;background:rgba(91,182,255,0.12);border:1px solid rgba(91,182,255,0.3);border-radius:5px;color:rgba(91,182,255,0.9);cursor:pointer;white-space:nowrap;transition:background .15s; }
+        .dash-issue-open-btn:hover { background:rgba(91,182,255,0.25); }
+
+        /* ── Issue Popup ── */
+        #dash-issue-modal { position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px); }
+        #dash-issue-modal.open { display:flex; }
+        .dash-issue-modal-box { background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:min(680px,92vw);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5); }
+        .dash-issue-modal-header { display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border); }
+        .dash-issue-modal-title { font-size:15px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+        .dash-issue-modal-body { padding:18px 20px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px; }
+        .dim-kv { display:flex;gap:8px;font-size:12px; }
+        .dim-k { color:var(--text-dim);font-family:var(--mono);min-width:80px; }
+        .dim-v { color:var(--text);flex:1; }
+        .dash-label-pill { display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;background:var(--bg3);border:1px solid var(--border);margin:2px; }
+    </style>
+</head>
+<body class="workspace-ready">
+
+<header>
+    <div class="logo">GL</div>
+    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.1</span></h1>
+    <div class="sub">Dashboard</div>
+    <div class="font-control">
+        字體
+        <div class="font-segment">
+            <button onclick="setFontSize('S')" data-font-size="S">S</button>
+            <button onclick="setFontSize('M')" data-font-size="M" class="active">M</button>
+            <button onclick="setFontSize('L')" data-font-size="L">L</button>
+            <button onclick="setFontSize('XL')" data-font-size="XL">XL</button>
+        </div>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">亮色</button>
+</header>
+
+<div class="workspace-frame">
+    <aside class="sidebar">
+        <div class="sidebar-title">Views</div>
+        <nav class="nav-links">
+            <a class="nav-link active" href="/">📊 Dashboard</a>
+            <a class="nav-link" href="/issuearrange">📝 Issue 整理</a>
+        </nav>
+        <div class="sidebar-spacer"></div>
+        <div class="sidebar-title">Tools</div>
+        <div class="sidebar-tools">
+            <a class="btn-ghost" href="/login" style="display:block;text-decoration:none;color:inherit;text-align:left"><span style="color:var(--text-dim);font-size:14px;margin-right:2px">⚙</span> 連線設定</a>
+        </div>
+    </aside>
+
+    <main class="layout" id="main-scroll">
+        <div id="view-dashboard" class="main-col" style="display:flex; gap:18px; flex-direction:column">
+            <section class="step active done" style="border-color:var(--border-hi)">
+                <div class="step-header">
+                    <div>
+                        <div class="step-title" style="font-size:18px">專案儀表板 (Dashboard)</div>
+                        <div class="step-sub">輸入專案網址以載入統計資料</div>
+                    </div>
+                </div>
+                <div class="step-body" style="display:flex;">
+                    <div class="field-row">
+                        <div class="field" style="flex:1">
+                            <label>Repo 網址或 Project ID</label>
+                            <input type="text" id="dash-repo-url" placeholder="例如：https://gitlab.example.com/group/project 或 1234">
+                        </div>
+                        <div class="field" style="max-width:180px">
+                            <label>&nbsp;</label>
+                            <button class="btn-primary" onclick="loadDashboard()">載入資料</button>
+                        </div>
+                    </div>
+                    <div id="dash-status" class="status hidden"></div>
+                </div>
+            </section>
+
+            <div id="dash-content" style="display:none; flex-direction:column; gap:18px;">
+                <!-- 篩選列 -->
+                <div class="field-row">
+                    <div class="field">
+                        <label>Milestone 篩選</label>
+                        <select id="dash-milestone" onchange="renderDashboardStats()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);padding:9px 12px;">
+                            <option value="all">不限 Milestone</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 總數 + 本週 -->
+                <div class="ds-stat-grid">
+                    <div class="ds-card">
+                        <div class="ds-card-label">總 Issue 數量</div>
+                        <div class="ds-card-value" id="dash-val-total">0</div>
+                        <div style="display:flex;gap:16px;margin-top:8px">
+                            <div><span style="color:var(--green);font-size:12px">開啟中:</span> <span id="dash-val-opened" style="font-family:var(--mono);font-size:14px">0</span></div>
+                            <div><span style="color:var(--text-dim);font-size:12px">已關閉:</span> <span id="dash-val-closed" style="font-family:var(--mono);font-size:14px">0</span></div>
+                        </div>
+                    </div>
+                    <div class="ds-card">
+                        <div class="ds-card-label">本週動態 (最近 7 天)</div>
+                        <div style="display:flex; gap:20px; flex:1; align-items:center">
+                            <div style="display:flex;flex-direction:column;flex:1">
+                                <div style="font-size:12px;color:var(--amber)">新建立</div>
+                                <div style="font-size:28px;font-weight:600;line-height:1.2" id="dash-val-week-new">0</div>
+                            </div>
+                            <div style="width:1px;background:var(--border);height:100%"></div>
+                            <div style="display:flex;flex-direction:column;flex:1">
+                                <div style="font-size:12px;color:var(--text-dim)">已關閉</div>
+                                <div style="font-size:28px;font-weight:600;line-height:1.2" id="dash-val-week-closed">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Priority + Assignee 分布卡 -->
+                <div class="ds-breakdown">
+                    <!-- Priority -->
+                    <div class="ds-breakdown-card">
+                        <div class="ds-breakdown-title">Priority 分布</div>
+                        <div id="dash-priority-rows"></div>
+                    </div>
+                    <!-- Assignee Top10 -->
+                    <div class="ds-breakdown-card">
+                        <div class="ds-breakdown-title">Assignee 分布（前 10 名）</div>
+                        <div id="dash-assignee-rows"></div>
+                    </div>
+                </div>
+
+                <!-- 趨勢圖 -->
+                <div id="dash-chart-wrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;display:none;flex-direction:column;gap:12px">
+                    <div style="display:flex;align-items:center;justify-content:space-between">
+                        <div style="font-family:var(--mono);font-size:12px;color:var(--text-dim)" id="dash-chart-label">Issue 趨勢圖</div>
+                        <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)" id="dash-chart-range"></div>
+                    </div>
+                    <div style="position:relative;height:240px">
+                        <canvas id="dash-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Issue 列表面板（點選 Priority/Assignee 後展開） -->
+                <div id="dash-issue-panel">
+                    <div class="dash-issue-panel-header">
+                        <div class="dash-issue-panel-title" id="dash-issue-panel-title">Issue 列表</div>
+                        <div style="display:flex; gap:14px; align-items:center">
+                            <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-dim)">
+                                <input type="checkbox" id="dash-hide-closed" onchange="renderDashIssuePanel()"> 隱藏已關閉
+                            </label>
+                            <button class="btn-ghost btn-sm" onclick="closeDashIssuePanel()">✕ 關閉</button>
+                        </div>
+                    </div>
+                    <div id="dash-issue-list"></div>
+                </div>
+
+                <!-- Footer -->
+                <div style="text-align:center">
+                    <button class="btn-ghost" id="btn-dash-load-more" onclick="loadMoreDashboard()" style="display:none;">⬇︎ 繼續載入更多資料</button>
+                    <div id="dash-footer-status" style="font-size:12px;color:var(--text-dim);margin-top:10px;font-family:var(--mono)"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Issue Popup Modal -->
+<div id="dash-issue-modal" onclick="if(event.target===this)closeDashIssueModal()">
+    <div class="dash-issue-modal-box">
+        <div class="dash-issue-modal-header">
+            <div class="dash-issue-modal-title" id="dash-modal-title">—</div>
+            <button class="modal-close" onclick="closeDashIssueModal()">&times;</button>
+        </div>
+        <div class="dash-issue-modal-body" id="dash-modal-body"></div>
+    </div>
+</div>
+
+<script src="static/ui.js"></script>
+<script src="static/app.js"></script>
+<script>
+// dashboard 頁：覆蓋 switchMainView
+window.switchMainView = function(v) {
+    if (v === 'issue-tool') window.location.href = '/issuearrange';
+    else if (v === 'login') window.location.href = '/login';
+};
+
+// ── 點選 Priority / Assignee 列，展開 Issue 面板 ──
+let _dashFilterType = null, _dashFilterValue = null;
+let _currentPanelIssues = [];
+let _currentPanelTitle  = '';
+
+function openDashBreakdownFilter(type, value, rowEl) {
+    // toggle：再點一次同樣項目則收合
+    if (_dashFilterType === type && _dashFilterValue === value) {
+        closeDashIssuePanel();
+        return;
+    }
+    // 取消其他 active
+    document.querySelectorAll('.ds-breakdown-row.active').forEach(el => el.classList.remove('active'));
+    if (rowEl) rowEl.classList.add('active');
+
+    _dashFilterType = type;
+    _dashFilterValue = value;
+
+    // 取得目前 Milestone 篩選後的 issues
+    const msSel = document.getElementById('dash-milestone');
+    const milestone = msSel ? msSel.value : 'all';
+    let issues = (window.S && window.S.dash && window.S.dash.issues) || [];
+    if (milestone !== 'all') {
+        issues = issues.filter(i => {
+            const ms = i.milestone;
+            const t = ms && typeof ms === 'object' ? ms.title : ms;
+            return t === milestone;
+        });
+    }
+
+    // 再依 priority/assignee 篩選
+    let filtered = issues;
+    if (type === 'priority') {
+        const tag = value === 'none' ? null : `Priority::${value}`;
+        if (tag) filtered = issues.filter(i => i.labels && i.labels.includes(tag));
+        else     filtered = issues.filter(i => !i.labels || !['High','Medium','Low'].some(p => i.labels.includes(`Priority::${p}`)));
+    } else if (type === 'assignee') {
+        if (value === '__unassigned__') filtered = issues.filter(i => !i.assignees || i.assignees.length === 0);
+        else filtered = issues.filter(i => i.assignees && i.assignees.includes(value));
+    }
+
+    renderDashIssuePanel(filtered, type === 'priority'
+        ? `Priority: ${value}`
+        : value === '__unassigned__' ? '未指派' : value);
+}
+
+function renderDashIssuePanel(issues, titleText) {
+    if (issues !== undefined) {
+        _currentPanelIssues = issues;
+        _currentPanelTitle  = titleText;
+    } else {
+        issues = _currentPanelIssues;
+        titleText = _currentPanelTitle;
+    }
+
+    const panel = document.getElementById('dash-issue-panel');
+    const list  = document.getElementById('dash-issue-list');
+    const title = document.getElementById('dash-issue-panel-title');
+
+    let renderList = [...issues];
+    const hideClosed = document.getElementById('dash-hide-closed') && document.getElementById('dash-hide-closed').checked;
+    
+    if (hideClosed) {
+        renderList = renderList.filter(i => i.state !== 'closed');
+    }
+    
+    renderList.sort((a,b) => {
+        if (a.state === 'closed' && b.state !== 'closed') return 1;
+        if (b.state === 'closed' && a.state !== 'closed') return -1;
+        return (b.iid || 0) - (a.iid || 0); // descending IID
+    });
+
+    title.textContent = `${titleText}（${issues.length} 筆，顯示 ${renderList.length} 筆）`;
+    list.innerHTML = renderList.map(i => {
+        let stateClass = i.state === 'opened' ? 'opened' : 'closed';
+        let displayState = i.state;
+        if (i.merge_requests_count && i.merge_requests_count > 0) {
+            displayState = "有 MR";
+            stateClass = "opened"; // MR 通常是特殊的亮色，覆蓋原本
+        }
+        
+        const iidText = i.iid ? `#${i.iid}` : '—';
+        const safeTitle = String(i.title || '（無標題）').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        const safeUrl = String(i.web_url || '').replace(/"/g,'&quot;');
+        
+        let typeBadge = '';
+        const lowerLabels = (i.labels || []).map(l => String(l).toLowerCase());
+        if (lowerLabels.some(l => l.includes('bug'))) {
+            typeBadge = `<span class="dash-issue-type bug">Bug</span>`;
+        } else if (lowerLabels.some(l => l.includes('suggestion'))) {
+            typeBadge = `<span class="dash-issue-type suggestion">Suggestion</span>`;
+        } else if (lowerLabels.some(l => l.includes('enhancement'))) {
+            typeBadge = `<span class="dash-issue-type enhancement">Enhancement</span>`;
+        } else if (lowerLabels.some(l => l.includes('feature'))) {
+            typeBadge = `<span class="dash-issue-type feature">Feature</span>`;
+        }
+
+        return `
+        <div class="dash-issue-item" onclick="openDashIssueModal(decodeURIComponent('${encodeURIComponent(JSON.stringify(i))}'))">
+            <span class="dash-issue-iid">${iidText}</span>
+            <span class="dash-issue-title" title="${safeTitle}">${safeTitle}</span>
+            <div style="margin-left:auto; display:flex; align-items:center;">
+                ${typeBadge}
+                <span class="dash-issue-state ${stateClass}">${displayState}</span>
+            </div>
+            ${safeUrl ? `<button class="dash-issue-open-btn" onclick="event.stopPropagation();window.open('${safeUrl}','_blank')" style="margin-left:8px">🔗 開啟</button>` : ''}
+        </div>`;
+    }).join('');
+
+    panel.style.display = 'flex';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDashIssuePanel() {
+    document.getElementById('dash-issue-panel').style.display = 'none';
+    document.querySelectorAll('.ds-breakdown-row.active').forEach(el => el.classList.remove('active'));
+    _dashFilterType = null; _dashFilterValue = null;
+}
+
+function openDashIssueModal(issueJsonStr) {
+    const i = JSON.parse(issueJsonStr);
+    document.getElementById('dash-modal-title').textContent = `${i.iid ? '#' + i.iid + ' ' : ''}${i.title || '（無標題）'}`;
+
+    const ms = i.milestone && typeof i.milestone === 'object' ? i.milestone.title : (i.milestone || '—');
+    const assignees = (i.assignees || []).join(', ') || '—';
+    const labels = (i.labels || []).map(l => `<span class="dash-label-pill">${String(l).replace(/</g,'&lt;')}</span>`).join('');
+    const createdAt = i.created_at ? i.created_at.slice(0,10) : '—';
+    const closedAt  = i.closed_at  ? i.closed_at.slice(0,10)  : '—';
+
+    document.getElementById('dash-modal-body').innerHTML = `
+        <div class="dim-kv"><span class="dim-k">狀態</span><span class="dim-v" style="color:${i.state==='opened'?'var(--green)':'var(--text-dim)'}">${i.state}</span></div>
+        <div class="dim-kv"><span class="dim-k">Milestone</span><span class="dim-v">${ms}</span></div>
+        <div class="dim-kv"><span class="dim-k">指派對象</span><span class="dim-v">${assignees}</span></div>
+        <div class="dim-kv"><span class="dim-k">建立者</span><span class="dim-v">${i.author || '—'}</span></div>
+        <div class="dim-kv"><span class="dim-k">建立日期</span><span class="dim-v">${createdAt}</span></div>
+        <div class="dim-kv"><span class="dim-k">關閉日期</span><span class="dim-v">${closedAt}</span></div>
+        <div class="dim-kv"><span class="dim-k">標籤</span><span class="dim-v">${labels || '—'}</span></div>
+        ${i.web_url ? `<div style="margin-top:8px"><a href="${i.web_url}" target="_blank" class="btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:13px">🔗 在瀏覽器開啟此 Issue</a></div>` : ''}
+    `;
+
+    document.getElementById('dash-issue-modal').classList.add('open');
+}
+
+function closeDashIssueModal() {
+    document.getElementById('dash-issue-modal').classList.remove('open');
+}
+
+// 覆蓋 renderDashboardStats 中的 priority/assignee 下拉，改為渲染分布卡
+const _origRenderDashboardStats = window.renderDashboardStats;
+window.renderDashboardStats = function() {
+    // 執行原始統計
+    if (_origRenderDashboardStats) _origRenderDashboardStats();
+    renderBreakdownCards();
+};
+
+function renderBreakdownCards() {
+    const msSel = document.getElementById('dash-milestone');
+    const milestone = msSel ? msSel.value : 'all';
+    let issues = (window.S && window.S.dash && window.S.dash.issues) || [];
+
+    // Milestone 篩選（優先）
+    if (milestone !== 'all') {
+        issues = issues.filter(i => {
+            const ms = i.milestone;
+            const t = ms && typeof ms === 'object' ? ms.title : ms;
+            return t === milestone;
+        });
+    }
+
+    // ── Priority 分布 ──
+    const prioMap = { High:0, Medium:0, Low:0, none:0 };
+    issues.forEach(i => {
+        if (i.labels && i.labels.includes('Priority::High'))   prioMap.High++;
+        else if (i.labels && i.labels.includes('Priority::Medium')) prioMap.Medium++;
+        else if (i.labels && i.labels.includes('Priority::Low'))    prioMap.Low++;
+        else prioMap.none++;
+    });
+    const maxP = Math.max(...Object.values(prioMap), 1);
+    const prioRows = document.getElementById('dash-priority-rows');
+    prioRows.innerHTML = [
+        { k:'High',   label:'🔴 High',   cls:'priority-high',   bar:'bar-high',   cnt: prioMap.High },
+        { k:'Medium', label:'🟡 Medium', cls:'priority-medium', bar:'bar-medium', cnt: prioMap.Medium },
+        { k:'Low',    label:'🟢 Low',    cls:'priority-low',    bar:'bar-low',    cnt: prioMap.Low },
+        { k:'none',   label:'⚪ 未標記', cls:'',               bar:'bar-assignee',cnt: prioMap.none },
+    ].map(r => `
+        <div class="ds-breakdown-row" id="prow-${r.k}" onclick="openDashBreakdownFilter('priority','${r.k}',this)">
+            <span class="ds-breakdown-name ${r.cls}">${r.label}</span>
+            <div class="ds-breakdown-bar-wrap"><div class="ds-breakdown-bar ${r.bar}" style="width:${Math.round(r.cnt/maxP*100)}%"></div></div>
+            <span class="ds-breakdown-count">${r.cnt}</span>
+        </div>`).join('');
+
+    // ── Assignee Top10 ──
+    const assigneeMap = {}; // name -> {total, open, closed}
+    let unassigned = {total:0, open:0, closed:0};
+    issues.forEach(i => {
+        const isOpen = i.state === 'opened';
+        if (!i.assignees || i.assignees.length === 0) { 
+            unassigned.total++; 
+            if (isOpen) unassigned.open++; else unassigned.closed++;
+            return; 
+        }
+        i.assignees.forEach(name => { 
+            if (name) {
+                if (!assigneeMap[name]) assigneeMap[name] = { total:0, open:0, closed:0 };
+                assigneeMap[name].total++;
+                if (isOpen) assigneeMap[name].open++; else assigneeMap[name].closed++;
+            }
+        });
+    });
+    const top10 = Object.entries(assigneeMap).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
+    const maxA = Math.max(...top10.map(e=>e[1].total), unassigned.total, 1);
+    const aEl = document.getElementById('dash-assignee-rows');
+    aEl.innerHTML = top10.map(([name, stat]) => {
+        const safeName = String(name).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        return `
+        <div class="ds-breakdown-row" onclick="openDashBreakdownFilter('assignee', '${safeName}', this)">
+            <span class="ds-breakdown-name">👤 ${name}</span>
+            <div class="ds-breakdown-bar-wrap"><div class="ds-breakdown-bar bar-assignee" style="width:${Math.round(stat.total/maxA*100)}%"></div></div>
+            <span class="ds-breakdown-count" style="min-width:60px;text-align:right">${stat.total} <span style="font-size:10px;color:var(--text-dim);font-weight:normal">(${stat.open}/${stat.closed})</span></span>
+        </div>`;
+    }).join('') + (unassigned.total > 0 ? `
+        <div class="ds-breakdown-row" onclick="openDashBreakdownFilter('assignee','__unassigned__',this)">
+            <span class="ds-breakdown-name" style="color:var(--text-dim)">⬜ 未指派</span>
+            <div class="ds-breakdown-bar-wrap"><div class="ds-breakdown-bar bar-assignee" style="width:${Math.round(unassigned.total/maxA*100)}%;opacity:.4"></div></div>
+            <span class="ds-breakdown-count" style="min-width:60px;text-align:right">${unassigned.total} <span style="font-size:10px;color:var(--text-dim);font-weight:normal">(${unassigned.open}/${unassigned.closed})</span></span>
+        </div>` : '');
+
+    // 重新套用 active 狀態
+    if (_dashFilterType && _dashFilterValue) {
+        closeDashIssuePanel();
+    }
+}
+</script>
+</body>
+</html>
