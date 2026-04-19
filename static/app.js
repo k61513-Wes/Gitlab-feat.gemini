@@ -70,8 +70,22 @@ function saveConfig() {
   if (id("btn-llm-only"))   id("btn-llm-only").disabled   = false;
   if (id("btn-excel"))      id("btn-excel").disabled      = false;
   if (id("step1"))          enterWorkspace();
-  // 儲存完成後跳轉到 Dashboard
-  setTimeout(() => { window.location.href = '/dashboard'; }, 300);
+  
+  if (typeof closeConfigModalDirect === "function") closeConfigModalDirect();
+  if (typeof toggleConfigPanel === "function") {
+    // 儲存後自動收合設定面板
+    const panel = id("sidebar-config-panel");
+    if (panel && panel.style.display === "flex") toggleConfigPanel();
+  }
+  updateSidebarStatus();
+  
+  // 如果目前位於 login.html 或首頁，儲存後直接跳轉到 dashboard
+  const path = window.location.pathname;
+  if (path === '/' || path === '/login' || path === '/index.html') {
+    window.location.href = '/dashboard';
+  }
+  
+  // 若原本沒有 token 但現在儲存了，也可以自動觸發一次擷取（非必備）
 }
 
 async function checkHealth() {
@@ -1070,9 +1084,13 @@ async function doLoadDashboard(isMore = false) {
   if (S.dash.loading) return;  // 防止重複並發
   S.dash.loading = true;
 
+  // 重要：初次載入（isMore=false）且有 repo_url 時，不傳舊 project_id
+  // 避免連線設定頁遺留的舊 projectId 覆蓋 URL 解析結果
+  const projectIdToSend = isMore ? S.dash.projectId : null;
+  console.log('[Dashboard] doLoadDashboard isMore=%s, repo_url=%s, project_id_sent=%s', isMore, S.dash.repoUrl, projectIdToSend);
   const payload = {
     repo_url:      S.dash.repoUrl,
-    project_id:    S.dash.projectId || S.projectId,
+    project_id:    projectIdToSend,
     private_token: S.token || (id("cfg-token") ? id("cfg-token").value.trim() : ""),
     target_count:  500,
     page_offset:   S.dash.pageOffset
@@ -1084,14 +1102,14 @@ async function doLoadDashboard(isMore = false) {
   if (!isMore) {
     id("dash-content").style.display = "none";
     showSt("dash-status", "info", "正在向 GitLab API 抓取資料...");
-  } else {
-    showSt("dash-status", "info", `背景載入中（目前 ${S.dash.issues.length} 筆）...`);
   }
+  // isMore 時不顯示小卡狀態，只更新小字的 footer status
 
   try {
     const res = await api("/api/dashboard/data", payload);
     if (res.error) throw new Error(res.error);
 
+    console.log('[Dashboard] resolved project_id=%s, base_url=%s, issues=%d', res.project_id, res.base_url, (res.issues||[]).length);
     S.dash.projectId = res.project_id;
     S.dash.issues    = S.dash.issues.concat(res.issues || []);
 
@@ -1105,12 +1123,32 @@ async function doLoadDashboard(isMore = false) {
     });
     S.dash.milestones = Object.values(msMap).sort((a, b) => (b.id || 0) - (a.id || 0));
 
-    S.dash.hasMore   = res.has_more;
+    // 判斷是否達到 3000 筆上限
+    if (S.dash.issues.length >= 3000) {
+      S.dash.hasMore = false;
+      S.dash.issues = S.dash.issues.slice(0, 3000); // 確保不超過 3000
+    } else {
+      S.dash.hasMore = res.has_more;
+    }
     S.dash.pageOffset = res.next_page_offset;
 
+    // 自動背景連載：若本次回傳滿 500 筆且尚未達到上限則繼續
+    if (S.dash.hasMore && S.dash.pageOffset > 0) {
+      id("dash-status").className = "status info";
+      id("dash-status").style.display = "block";
+      showSt("dash-status", "info", `背景載入中... 目前已獲取 ${S.dash.issues.length} 筆`);
+      id("dash-footer-status").textContent = `已載入 ${S.dash.issues.length} 筆，背景繼續載入...`;
+      id("btn-dash-load-more").style.display = "none";
+      S.dash.loading = false;
+      setTimeout(() => doLoadDashboard(true), 300);
+      return;
+    }
+
+    // 載入完成或不需要背景連載時，確保隱藏該區塊
     id("dash-content").style.display = "flex";
     id("dash-status").className = "status hidden";
-
+    id("dash-status").style.display = "none";
+    
     // 重建 milestone 選單（保留目前選擇）
     const prevMs = id("dash-milestone").value;
     buildMilestoneSelect(S.dash.milestones);
@@ -1120,23 +1158,105 @@ async function doLoadDashboard(isMore = false) {
 
     renderDashboardStats();
 
-    // 自動背景連載：若本次回傳滿 500 筆則繼續
-    if (res.has_more && res.next_page_offset > 0) {
-      id("dash-footer-status").textContent = `已載入 ${S.dash.issues.length} 筆，背景繼續載入...`;
-      id("btn-dash-load-more").style.display = "none";
-      S.dash.loading = false;
-      setTimeout(() => doLoadDashboard(true), 300);
-      return;
-    }
-
+    // 載入完成，清除狀態訊息並顯示結果
+    const dashStatus = id("dash-status");
+    if (dashStatus) dashStatus.className = "status hidden";
     id("dash-footer-status").textContent = `全部載入完成，共 ${S.dash.issues.length} 筆`;
     id("btn-dash-load-more").style.display = "none";
 
   } catch(e) {
+    id("dash-content").style.display = "flex";
     showSt("dash-status", "error", `載入${isMore ? '更多' : ''}失敗：${e.message}`);
   } finally {
     S.dash.loading = false;
     if (!isMore && loadBtn) { loadBtn.disabled = false; loadBtn.textContent = "載入資料"; }
+  }
+}
+
+let currentValidIssues = [];
+let dashTableVisible = false;
+let dashTablePage = 1;
+
+function toggleDashTable() {
+  const wrap = id("dash-issue-table-wrap");
+  dashTableVisible = !dashTableVisible;
+  wrap.style.display = dashTableVisible ? "flex" : "none";
+  if (dashTableVisible) {
+    dashTablePage = 1;
+    renderDashTable();
+  }
+}
+
+function loadMoreDashTable() {
+  dashTablePage++;
+  renderDashTable();
+}
+
+function resetAndRenderDashTable() {
+  dashTablePage = 1;
+  renderDashTable();
+}
+
+function renderDashTable() {
+  const tBody = id("dash-issue-tbody");
+  if (!tBody) return;
+  const PAGE_SIZE = 50;
+  
+  // 1. 複製並篩選
+  let list = [...currentValidIssues];
+  const hideClosed = id("dash-table-hide-closed") && id("dash-table-hide-closed").checked;
+  if (hideClosed) {
+    list = list.filter(i => i.state !== 'closed');
+  }
+
+  // 2. 排序規則：未關閉的在前，已關閉的在後，接著依照 IID 遞減
+  list.sort((a,b) => {
+    if (a.state === 'closed' && b.state !== 'closed') return 1;
+    if (b.state === 'closed' && a.state !== 'closed') return -1;
+    return (b.iid || 0) - (a.iid || 0);
+  });
+
+  // 只顯示到目前頁數應有的總數
+  const maxItems = dashTablePage * PAGE_SIZE;
+  const itemsToShow = list.slice(0, maxItems);
+  
+  tBody.innerHTML = itemsToShow.map(iss => {
+    const assigneesText = (iss.assignees || []).join(", ") || "—";
+    const milestoneText = iss.milestone ? (typeof iss.milestone === 'object' ? iss.milestone.title : iss.milestone) : "—";
+    const stateColor    = iss.state === "opened"
+      ? "rgba(61,214,140,0.1);color:var(--green)"
+      : "rgba(110,110,136,0.2);color:var(--text-dim)";
+    const issUrl = `${S.dash.repoUrl.replace(/\/$/, '')}/-/issues/${iss.iid}`;
+    
+    return `
+      <tr style="border-bottom:1px solid var(--border);transition:background 0.15s;cursor:pointer;"
+          onmouseover="this.style.background='var(--bg3)'"
+          onmouseout="this.style.background='transparent'"
+          onclick="if(typeof openDashIssueModal==='function') openDashIssueModal(decodeURIComponent('${encodeURIComponent(JSON.stringify(iss))}'))">
+        <td style="padding:10px;font-family:var(--mono);">
+          <a href="${issUrl}" target="_blank" style="color:var(--text-bright);text-decoration:none;" onclick="event.stopPropagation()">#${iss.iid}</a>
+        </td>
+        <td style="padding:10px;">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:350px" title="${escapeHtml(iss.title)}">
+            ${escapeHtml(iss.title)}
+          </div>
+        </td>
+        <td style="padding:10px;">
+          <span style="font-size:10px;padding:2px 6px;border-radius:3px;background:${stateColor};white-space:nowrap">${iss.state}</span>
+        </td>
+        <td style="padding:10px;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(milestoneText)}">${escapeHtml(milestoneText)}</td>
+        <td style="padding:10px;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(assigneesText)}">${escapeHtml(assigneesText)}</td>
+      </tr>
+    `;
+  }).join("");
+  
+  const moreBtn = id("btn-dash-table-more");
+  if (moreBtn) {
+    if (list.length > maxItems) {
+      moreBtn.style.display = "inline-block";
+    } else {
+      moreBtn.style.display = "none";
+    }
   }
 }
 
@@ -1166,6 +1286,15 @@ function renderDashboardStats() {
   const total  = validIssues.length;
   const opened = validIssues.filter(i => i.state === "opened").length;
   const closed = validIssues.filter(i => i.state === "closed").length;
+  
+  // 更新 currentValidIssues 給表格使用
+  currentValidIssues = validIssues;
+  
+  // 若表格已被展開，重新渲染
+  if (dashTableVisible) {
+    dashTablePage = 1;
+    renderDashTable();
+  }
 
   // ─ 動態判定本週期 (依據 Milestone)
   let msStart = null, msEnd = null;
@@ -1204,6 +1333,9 @@ function renderDashboardStats() {
 
   // ─ 折線圖
   renderSprintChart(validIssues, milestone);
+  
+  // ── 將結果持久化到 Session Storage
+  storeDashboardState();
 }
 
 
@@ -1345,4 +1477,37 @@ function renderSprintChart(issues, milestoneTitle) {
   id("dash-chart-range").textContent = `${startDate.toISOString().slice(0,10)} → ${endDate.toISOString().slice(0,10)}`;
   chartWrap.style.display = "flex";
 }
+
+// ── Session Storage 持久化機制 ──
+function storeDashboardState() {
+  if (S.dash && S.dash.issues && S.dash.issues.length > 0) {
+    try {
+      sessionStorage.setItem('gitlab_dashboard_state', JSON.stringify(S.dash));
+    } catch(e) { console.warn('sessionStorage size limit reached', e); }
+  }
+}
+
+function restoreDashboardState() {
+  const stateStr = sessionStorage.getItem('gitlab_dashboard_state');
+  if (stateStr) {
+    try {
+      const state = JSON.parse(stateStr);
+      if (state && state.issues && state.issues.length > 0) {
+        S.dash = state;
+        const repInp = id("dash-repo-url");
+        if (repInp) repInp.value = S.dash.repoUrl || "";
+        
+        // 如果目前位於 Dashboard 頁面才主動渲染
+        if (id("dash-content")) {
+          if (S.dash.milestones) buildMilestoneSelect(S.dash.milestones);
+          renderDashboardStats();
+          id("dash-content").style.display = "flex";
+        }
+      }
+    } catch(e) { console.error('Failed restoring default state', e); }
+  }
+}
+
+// 頁面載入時嘗試還原
+document.addEventListener('DOMContentLoaded', restoreDashboardState);
 

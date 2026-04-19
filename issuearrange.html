@@ -2,7 +2,7 @@
 <html lang="zh-TW" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Issue 整理 — GitLab Issue 管理工具 v1.2.1</title>
+    <title>Issue 整理 — GitLab Issue 管理工具 v1.2.7</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/style.css">
@@ -11,7 +11,7 @@
 
 <header>
     <div class="logo">GL</div>
-    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.1</span></h1>
+    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.7</span></h1>
     <div class="sub">LLM Workbench</div>
     <div class="font-control">
         字體
@@ -29,90 +29,59 @@
     <aside class="sidebar">
         <div class="sidebar-title">Views</div>
         <nav class="nav-links">
-            <a class="nav-link" href="/">📊 Dashboard</a>
-            <a class="nav-link active" href="/issuearrange">📝 Issue 整理</a>
+            <a class="nav-link" href="/dashboard">📊 Dashboard</a>
+            <a class="nav-link active" href="javascript:void(0)">📝 Issue 整理</a>
         </nav>
         <div class="sidebar-spacer"></div>
         <div class="sidebar-title">Tools</div>
         <div class="sidebar-tools">
             <button class="btn-ghost" onclick="openToolPanel('history')">歷史存檔</button>
             <button class="btn-ghost" onclick="openToolPanel('prompt')">Prompt 看板</button>
-            <a class="btn-ghost" href="/login" style="display:block;text-decoration:none;color:inherit;text-align:left"><span style="color:var(--text-dim);font-size:14px;margin-right:2px">⚙</span> 連線設定</a>
+            <button class="btn-ghost" id="btn-config-toggle" onclick="toggleConfigPanel()"><span style="color:var(--text-dim);font-size:14px;margin-right:2px">⚙</span> 連線設定</button>
+        </div>
+
+        <!-- 側邊欄 inline 連線設定（預設折疊） -->
+        <div id="sidebar-config-panel" style="display:none;flex-direction:column;gap:10px;padding-top:6px;border-top:1px solid var(--border);margin-top:4px">
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.55" id="sidebar-status">
+                當前狀態：尚未設定<br>Project —<br>Timeout —<br>Model —
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+                <div class="field">
+                    <label for="cfg-project-id" style="font-size:10px">Project ID</label>
+                    <input type="text" id="cfg-project-id" placeholder="例如：2135" style="font-size:11px;padding:6px 9px">
+                    <label style="display:flex;align-items:center;gap:5px;margin-top:2px;cursor:pointer">
+                        <input type="checkbox" id="cfg-remember-pid" style="width:auto">
+                        <span style="font-size:10px;font-family:var(--mono);color:var(--text-dim);text-transform:none">記住 Project ID</span>
+                    </label>
+                </div>
+                <div class="field">
+                    <label for="cfg-token" style="font-size:10px">Personal Access Token</label>
+                    <input type="password" id="cfg-token" placeholder="glpat-..." style="font-size:11px;padding:6px 9px">
+                </div>
+                <div class="field" style="display:none">
+                    <label for="cfg-user" style="font-size:10px">GitLab 帳號（Selenium）</label>
+                    <input type="text" id="cfg-user" placeholder="帳號" style="font-size:11px;padding:6px 9px">
+                </div>
+                <div class="field" style="display:none">
+                    <label for="cfg-pass" style="font-size:10px">GitLab 密碼（Selenium）</label>
+                    <input type="password" id="cfg-pass" style="font-size:11px;padding:6px 9px">
+                </div>
+                <div class="field">
+                    <label for="cfg-timeout" style="font-size:10px">逾時 (秒)</label>
+                    <input type="text" id="cfg-timeout" value="300" style="font-size:11px;padding:6px 9px">
+                </div>
+                <div style="display:flex;gap:6px">
+                    <button class="btn-ghost" id="btn-health" onclick="checkHealth()" style="flex:1;font-size:11px;padding:6px 8px">檢查 CLI</button>
+                    <button class="btn-primary" onclick="saveConfig()" style="flex:1;font-size:11px;padding:6px 8px">儲存</button>
+                </div>
+                <div id="st-config" class="status hidden" style="font-size:11px"></div>
+            </div>
         </div>
     </aside>
 
     <main class="layout" id="main-scroll">
         <div id="view-issue-tool" class="main-col" style="display:contents">
-            <!-- 設定 Step -->
-            <section class="step" id="step-config">
-                <div class="step-header">
-                    <div class="step-num"><span class="step-num-inner">0</span></div>
-                    <div>
-                        <div class="step-title">連線設定</div>
-                        <div class="step-sub">設定 API Token 或備用帳號</div>
-                    </div>
-                </div>
-                <div class="step-body" style="display:flex;">
-                    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-family:var(--mono);font-size:12px;color:var(--text-dim);line-height:1.55;margin-bottom:10px;" id="sidebar-status">
-                        當前狀態：尚未設定<br>Project —<br>Timeout —<br>Model —
-                    </div>
-
-                    <div class="field">
-                        <label>連接模式與模型</label>
-                        <div class="hint" style="margin-bottom:8px">
-                            優先使用 <strong>GitLab API</strong>（需 Project ID + Token），若無則降級使用 <strong>Selenium</strong>。<br>
-                            Gemini CLI 若不可用，請確認是否安裝或設定 <code style="color:var(--text-bright);font-size:11px;background:rgba(255,255,255,0.08);padding:0 3px;border-radius:2px">GEMINI_CLI_PATH</code>。
-                        </div>
-                    </div>
-
-                    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;margin-bottom:6px">
-                        <div style="font-family:var(--mono);font-size:var(--font-size-tag);color:var(--text-dim);text-transform:uppercase;margin-bottom:-4px">GitLab API 模式（推薦）</div>
-                        <div class="field-row">
-                            <div class="field">
-                                <label for="cfg-project-id">Project ID (若有自帶網址輸入可免)</label>
-                                <input type="text" id="cfg-project-id" placeholder="例如：2135">
-                                <label style="display:flex;align-items:center;gap:6px;margin-top:2px;cursor:pointer">
-                                    <input type="checkbox" id="cfg-remember-pid" style="width:auto">
-                                    <span style="font-size:10px;text-transform:none">自動記住 Project ID</span>
-                                </label>
-                            </div>
-                            <div class="field">
-                                <label for="cfg-token">Personal Access Token</label>
-                                <input type="password" id="cfg-token" placeholder="glpat-...">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:12px;margin-bottom:6px">
-                        <div style="font-family:var(--mono);font-size:var(--font-size-tag);color:var(--text-dim);text-transform:uppercase;margin-bottom:-4px">Selenium 模式（備用）</div>
-                        <div class="field-row">
-                            <div class="field">
-                                <label for="cfg-user">GitLab 帳號</label>
-                                <input type="text" id="cfg-user" placeholder="如果是內網可能是 Email 或工號">
-                            </div>
-                            <div class="field">
-                                <label for="cfg-pass">GitLab 密碼</label>
-                                <input type="password" id="cfg-pass">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="field-row">
-                        <div class="field">
-                            <label for="cfg-timeout">Gemini CLI 逾時 (秒)</label>
-                            <input type="text" id="cfg-timeout" value="300">
-                        </div>
-                        <div class="field">
-                            <label>操作</label>
-                            <div class="btn-row">
-                                <button class="btn-ghost" id="btn-health" onclick="checkHealth()">檢查 Gemini CLI</button>
-                                <button class="btn-primary" onclick="saveConfig()" style="flex:1;justify-content:center">儲存設定</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="st-config" class="status hidden"></div>
-                </div>
-            </section>
+        <div id="view-issue-tool" class="main-col" style="display:contents">
 
             <!-- Step 1: Input -->
             <section class="step active" id="step1">
@@ -346,8 +315,8 @@
     </div>
 </div>
 
-<script src="static/ui.js"></script>
-<script src="static/app.js"></script>
+<script src="static/ui.js?v=1.2.7"></script>
+<script src="static/app.js?v=1.2.7"></script>
 <script>
 // issuearrange 頁：覆蓋 switchMainView 改為頁面跳轉
 window.switchMainView = function(v) {

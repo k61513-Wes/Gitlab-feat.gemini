@@ -2,7 +2,7 @@
 <html lang="zh-TW" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <title>連線設定 — GitLab Issue 管理工具 v1.2.1</title>
+    <title>連線設定 — GitLab Issue 管理工具 v1.2.7</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/style.css">
@@ -11,7 +11,7 @@
 
 <header>
     <div class="logo">GL</div>
-    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.1</span></h1>
+    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.7</span></h1>
     <div class="sub">連線設定</div>
     <div class="font-control">
         字體
@@ -108,8 +108,8 @@
     </main>
 </div>
 
-<script src="static/ui.js"></script>
-<script src="static/app.js"></script>
+<script src="static/ui.js?v=1.2.7"></script>
+<script src="static/app.js?v=1.2.7"></script>
 <script>
 // 若已有 Token（上次登入過），直接跳轉 Dashboard（但只限從首頁進來時，若是主動點擊 /login 則不跳轉）
 const _existingToken = sessionStorage.getItem("gitlab_token");

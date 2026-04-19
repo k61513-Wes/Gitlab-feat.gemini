@@ -10,7 +10,7 @@
 | 項目 | 說明 |
 |------|------|
 | **專案名稱** | GitLab Issue 整理工具 |
-| **目前版本** | v1.2.1 |
+| **目前版本** | v1.2.7 |
 | **技術棧** | Python 3.8+ / Flask / Selenium / Gemini CLI |
 | **主資料夾** | `Gitlab feat.gemini/`（唯一工作目錄） |
 | **Git 遠端** | https://github.com/k61513-Wes/Gitlab-feat.gemini.git |
@@ -226,6 +226,7 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 
 | 日期 | 版本 | 說明 |
 |------|------|------|
+| 2026-04-19 | v1.2.7 | 狀態保持與體驗修復：加入 `sessionStorage` 恢復 Dashboard 狀態避免跳轉清空、補齊 Issue Grid Table 的排序/過濾關閉/動態 Click Popup 功能、修復背景載入無反應字樣殘留 |
 | 2026-04-19 | v1.2.1 | 架構重構：將 app.py 與 index.html 模組化拆分為 modules/ 與 static/ 資料夾結構 |
 | 2026-04-17 | v1.2.0 | AI 工作台化：新增三欄 layout、全域字體控制、LLM 結果卡片化、單筆/批次分段操作、Prompt Preview、outputs 搜尋與 raw/result 再處理 |
 | 2026-04-10 | v1.1.2 | 文件反向同步：以目前實作為準，確認模型改為 UI 送出前單選、不做 fallback；同步 probe timeout、結構化 log、Step 2 狀態膠囊與三段時間軸，以及 `repo_issue_model_date` 類型檔名規則 |

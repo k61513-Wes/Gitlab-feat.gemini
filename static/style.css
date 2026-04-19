@@ -57,8 +57,7 @@ body:not(.workspace-ready) #step2,
 body:not(.workspace-ready) #step3 { display: none; }
 body:not(.workspace-ready) .workspace-frame { display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 24px; }
 body:not(.workspace-ready) .layout { width: min(760px, 100%); padding: 0; }
-body:not(.workspace-ready) #step-config { box-shadow: 0 18px 80px rgba(0,0,0,0.24); }
-body.workspace-ready:not(.login-page) #step-config { display: none; }
+/* step-config 已移入 Modal，不再需要這些規則 */
 
 /* ── Step card ── */
 .step { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg2); overflow: hidden; transition: border-color var(--tr); }

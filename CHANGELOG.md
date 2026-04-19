@@ -4,6 +4,18 @@
 
 ---
 
+## v1.2.7
+
+### 2026-04-19
+
+| # | 日期 | 版本 | 類型 | 影響檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 107 | 2026-04-19 | v1.2.7 | feat | `static/ui.js`, `dashboard.html` | 狀態保持與體驗修復：加入 `sessionStorage` 恢復 Dashboard 狀態避免跳轉清空 |
+| 108 | 2026-04-19 | v1.2.7 | feat | `dashboard.html`, `static/app.js` | 補齊 Issue Grid Table 的排序/過濾關閉/動態 Click Popup 功能 |
+| 109 | 2026-04-19 | v1.2.7 | fix | `static/ui.js`, `static/app.js` | 修復背景載入無反應字樣殘留 |
+
+---
+
 ## v1.2.1
 
 ### 2026-04-19

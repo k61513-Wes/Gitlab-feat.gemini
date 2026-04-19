@@ -50,12 +50,18 @@ function enterWorkspace() {
   requestAnimationFrame(() => scrollToSection("step1"));
 }
 
-function resetConfigGate() {
-  document.body.classList.remove("workspace-ready");
-  closeToolPanelDirect();
-  id("step-config").classList.add("active");
-  id("step-config").classList.remove("done");
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function toggleConfigPanel() {
+  const panel = id("sidebar-config-panel");
+  const btn   = id("btn-config-toggle");
+  if (!panel) return;
+  const isOpen = panel.style.display === "flex";
+  panel.style.display = isOpen ? "none" : "flex";
+  if (btn) {
+    btn.style.borderColor = isOpen ? "" : "var(--accent-dim)";
+    btn.style.color       = isOpen ? "" : "var(--text-bright)";
+  }
+  // 展開時自動列入已儲存的內容
+  if (!isOpen) updateSidebarStatus();
 }
 
 function updateSidebarStatus() {
@@ -92,6 +98,7 @@ function switchMainView(viewId) {
   }
 
   const isDash = viewId === 'dashboard';
+  // 使用 visibility 控制顯示/隱藏，避免改 display 造成對內容的重繪
   dashView.style.display  = isDash ? 'flex' : 'none';
   issueView.style.display = isDash ? 'none' : 'contents';
 
@@ -100,8 +107,12 @@ function switchMainView(viewId) {
   if (navDash)  navDash.classList.toggle('active',  isDash);
   if (navIssue) navIssue.classList.toggle('active', !isDash);
 
+  // 切到 Issue 整理左滾動到頃部
   if (!isDash) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    // 切回 Dashboard 時不需重載，將滾動迺回頁面頂部
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }
 }
 

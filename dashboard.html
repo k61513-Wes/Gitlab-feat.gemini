@@ -2,7 +2,7 @@
 <html lang="zh-TW" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard — GitLab Issue 管理工具 v1.2.1</title>
+    <title>Dashboard — GitLab Issue 管理工具 v1.2.7</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/style.css">
@@ -34,6 +34,14 @@
         .bar-medium{ background:#e0a040; }
         .bar-low   { background:#60b060; }
         .bar-assignee { background:rgba(91,182,255,0.7); }
+
+        /* Label 標籤顏色 */
+        .label-bug        { color:#ff6b6b; }
+        .label-enhancement{ color:#4dcccc; }
+        .label-suggestion { color:#c48df5; }
+        .label-pes        { color:#f0a040; }
+        .label-pestech    { color:#f07040; }
+        .label-discussion { color:#6bb3ff; }
 
         /* ── Issue 列表面板 ── */
         #dash-issue-panel { background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;display:none;flex-direction:column;gap:12px; }
@@ -71,7 +79,7 @@
 
 <header>
     <div class="logo">GL</div>
-    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.1</span></h1>
+    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);font-weight:normal;margin-left:6px">v1.2.7</span></h1>
     <div class="sub">Dashboard</div>
     <div class="font-control">
         字體
@@ -89,13 +97,51 @@
     <aside class="sidebar">
         <div class="sidebar-title">Views</div>
         <nav class="nav-links">
-            <a class="nav-link active" href="/">📊 Dashboard</a>
+            <a class="nav-link active" href="javascript:void(0)">📊 Dashboard</a>
             <a class="nav-link" href="/issuearrange">📝 Issue 整理</a>
         </nav>
         <div class="sidebar-spacer"></div>
         <div class="sidebar-title">Tools</div>
         <div class="sidebar-tools">
-            <a class="btn-ghost" href="/login" style="display:block;text-decoration:none;color:inherit;text-align:left"><span style="color:var(--text-dim);font-size:14px;margin-right:2px">⚙</span> 連線設定</a>
+            <button class="btn-ghost" id="btn-config-toggle" onclick="toggleConfigPanel()"><span style="color:var(--text-dim);font-size:14px;margin-right:2px">⚙</span> 連線設定</button>
+        </div>
+
+        <!-- 側邊欄 inline 連線設定（預設折疊） -->
+        <div id="sidebar-config-panel" style="display:none;flex-direction:column;gap:10px;padding-top:6px;border-top:1px solid var(--border);margin-top:4px">
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-family:var(--mono);font-size:11px;color:var(--text-dim);line-height:1.55" id="sidebar-status">
+                當前狀態：尚未設定<br>Project —<br>Timeout —<br>Model —
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+                <div class="field">
+                    <label for="cfg-project-id" style="font-size:10px">Project ID</label>
+                    <input type="text" id="cfg-project-id" placeholder="例如：2135" style="font-size:11px;padding:6px 9px">
+                    <label style="display:flex;align-items:center;gap:5px;margin-top:2px;cursor:pointer">
+                        <input type="checkbox" id="cfg-remember-pid" style="width:auto">
+                        <span style="font-size:10px;font-family:var(--mono);color:var(--text-dim);text-transform:none">記住 Project ID</span>
+                    </label>
+                </div>
+                <div class="field">
+                    <label for="cfg-token" style="font-size:10px">Personal Access Token</label>
+                    <input type="password" id="cfg-token" placeholder="glpat-..." style="font-size:11px;padding:6px 9px">
+                </div>
+                <div class="field" style="display:none">
+                    <label for="cfg-user" style="font-size:10px">GitLab 帳號（Selenium）</label>
+                    <input type="text" id="cfg-user" placeholder="帳號" style="font-size:11px;padding:6px 9px">
+                </div>
+                <div class="field" style="display:none">
+                    <label for="cfg-pass" style="font-size:10px">GitLab 密碼（Selenium）</label>
+                    <input type="password" id="cfg-pass" style="font-size:11px;padding:6px 9px">
+                </div>
+                <div class="field">
+                    <label for="cfg-timeout" style="font-size:10px">逾時 (秒)</label>
+                    <input type="text" id="cfg-timeout" value="300" style="font-size:11px;padding:6px 9px">
+                </div>
+                <div style="display:flex;gap:6px">
+                    <button class="btn-ghost" id="btn-health" onclick="checkHealth()" style="flex:1;font-size:11px;padding:6px 8px">檢查 CLI</button>
+                    <button class="btn-primary" onclick="saveConfig()" style="flex:1;font-size:11px;padding:6px 8px">儲存</button>
+                </div>
+                <div id="st-config" class="status hidden" style="font-size:11px"></div>
+            </div>
         </div>
     </aside>
 
@@ -138,7 +184,7 @@
                 <div class="ds-stat-grid">
                     <div class="ds-card">
                         <div class="ds-card-label">總 Issue 數量</div>
-                        <div class="ds-card-value" id="dash-val-total">0</div>
+                        <div class="ds-card-value" id="dash-val-total" onclick="toggleDashTable()" style="cursor:pointer;text-decoration:underline;color:var(--text-bright)" title="點擊展開下方表格">0</div>
                         <div style="display:flex;gap:16px;margin-top:8px">
                             <div><span style="color:var(--green);font-size:12px">開啟中:</span> <span id="dash-val-opened" style="font-family:var(--mono);font-size:14px">0</span></div>
                             <div><span style="color:var(--text-dim);font-size:12px">已關閉:</span> <span id="dash-val-closed" style="font-family:var(--mono);font-size:14px">0</span></div>
@@ -162,10 +208,10 @@
 
                 <!-- Priority + Assignee 分布卡 -->
                 <div class="ds-breakdown">
-                    <!-- Priority -->
+                    <!-- label 標籤 -->
                     <div class="ds-breakdown-card">
-                        <div class="ds-breakdown-title">Priority 分布</div>
-                        <div id="dash-priority-rows"></div>
+                        <div class="ds-breakdown-title">label 標籤</div>
+                        <div id="dash-label-rows"></div>
                     </div>
                     <!-- Assignee Top10 -->
                     <div class="ds-breakdown-card">
@@ -185,10 +231,40 @@
                     </div>
                 </div>
 
+                <!-- Issue 表格區 -->
+                <div id="dash-issue-table-wrap" style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;display:none;flex-direction:column;gap:12px;margin-top:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                        <div style="font-family:var(--mono);font-size:14px;color:var(--text);font-weight:500">Issue 清單 (分頁檢視)</div>
+                        <div style="display:flex; gap:14px; align-items:center">
+                            <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-dim)">
+                                <input type="checkbox" id="dash-table-hide-closed" onchange="resetAndRenderDashTable()"> 隱藏已關閉
+                            </label>
+                            <button class="btn-ghost" style="padding:4px 8px;font-size:11px" onclick="toggleDashTable()">✕ 關閉</button>
+                        </div>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="dash-table" style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
+                            <thead>
+                                <tr style="border-bottom:1px solid var(--border);color:var(--text-dim);">
+                                    <th style="padding:10px;font-family:var(--mono);font-weight:500">IID</th>
+                                    <th style="padding:10px;font-weight:500;width:350px">Title</th>
+                                    <th style="padding:10px;font-weight:500">State</th>
+                                    <th style="padding:10px;font-weight:500">Milestone</th>
+                                    <th style="padding:10px;font-weight:500">Assignee</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-issue-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div style="text-align:center;margin-top:8px;">
+                        <button class="btn-ghost" id="btn-dash-table-more" onclick="loadMoreDashTable()" style="display:none;font-size:12px;">⬇︎ 顯示更多 50 筆</button>
+                    </div>
+                </div>
+
                 <!-- Issue 列表面板（點選 Priority/Assignee 後展開） -->
                 <div id="dash-issue-panel">
                     <div class="dash-issue-panel-header">
-                        <div class="dash-issue-panel-title" id="dash-issue-panel-title">Issue 列表</div>
+                        <div class="dash-issue-panel-title" id="dash-issue-panel-title">Issue 分布篩選列表</div>
                         <div style="display:flex; gap:14px; align-items:center">
                             <label style="font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text-dim)">
                                 <input type="checkbox" id="dash-hide-closed" onchange="renderDashIssuePanel()"> 隱藏已關閉
@@ -220,8 +296,8 @@
     </div>
 </div>
 
-<script src="static/ui.js"></script>
-<script src="static/app.js"></script>
+<script src="static/ui.js?v=1.2.7"></script>
+<script src="static/app.js?v=1.2.7"></script>
 <script>
 // dashboard 頁：覆蓋 switchMainView
 window.switchMainView = function(v) {
@@ -259,7 +335,7 @@ function openDashBreakdownFilter(type, value, rowEl) {
         });
     }
 
-    // 再依 priority/assignee 篩選
+    // 再依 priority/assignee/label 篩選
     let filtered = issues;
     if (type === 'priority') {
         const tag = value === 'none' ? null : `Priority::${value}`;
@@ -268,11 +344,16 @@ function openDashBreakdownFilter(type, value, rowEl) {
     } else if (type === 'assignee') {
         if (value === '__unassigned__') filtered = issues.filter(i => !i.assignees || i.assignees.length === 0);
         else filtered = issues.filter(i => i.assignees && i.assignees.includes(value));
+    } else if (type === 'label') {
+        filtered = issues.filter(i => i.labels && i.labels.some(l => l === value));
     }
 
-    renderDashIssuePanel(filtered, type === 'priority'
+    const panelTitle = type === 'priority'
         ? `Priority: ${value}`
-        : value === '__unassigned__' ? '未指派' : value);
+        : type === 'label'
+        ? `Label: ${value}`
+        : value === '__unassigned__' ? '未指派' : value;
+    renderDashIssuePanel(filtered, panelTitle);
 }
 
 function renderDashIssuePanel(issues, titleText) {
@@ -398,27 +479,32 @@ function renderBreakdownCards() {
         });
     }
 
-    // ── Priority 分布 ──
-    const prioMap = { High:0, Medium:0, Low:0, none:0 };
+    // ── Label 標籤分布 ──
+    const LABEL_DEFS = [
+        { k: 'Bug',         label: '🔴 Bug',          color: '#ff6b6b' },
+        { k: 'Enhancement', label: '🟢 Enhancement',  color: '#4dcccc' },
+        { k: 'Suggestion',  label: '🟣 Suggestion',   color: '#c48df5' },
+        { k: 'PES',         label: '🟠 PES',           color: '#f0a040' },
+        { k: 'PES::Tech',   label: '🔶 PES::Tech',     color: '#f07040' },
+        { k: 'Discussion',  label: '🔵 Discussion',   color: '#6bb3ff' },
+    ];
+    const labelCountMap = {};
+    LABEL_DEFS.forEach(d => labelCountMap[d.k] = 0);
     issues.forEach(i => {
-        if (i.labels && i.labels.includes('Priority::High'))   prioMap.High++;
-        else if (i.labels && i.labels.includes('Priority::Medium')) prioMap.Medium++;
-        else if (i.labels && i.labels.includes('Priority::Low'))    prioMap.Low++;
-        else prioMap.none++;
+        LABEL_DEFS.forEach(d => {
+            if (i.labels && i.labels.some(l => l === d.k)) labelCountMap[d.k]++;
+        });
     });
-    const maxP = Math.max(...Object.values(prioMap), 1);
-    const prioRows = document.getElementById('dash-priority-rows');
-    prioRows.innerHTML = [
-        { k:'High',   label:'🔴 High',   cls:'priority-high',   bar:'bar-high',   cnt: prioMap.High },
-        { k:'Medium', label:'🟡 Medium', cls:'priority-medium', bar:'bar-medium', cnt: prioMap.Medium },
-        { k:'Low',    label:'🟢 Low',    cls:'priority-low',    bar:'bar-low',    cnt: prioMap.Low },
-        { k:'none',   label:'⚪ 未標記', cls:'',               bar:'bar-assignee',cnt: prioMap.none },
-    ].map(r => `
-        <div class="ds-breakdown-row" id="prow-${r.k}" onclick="openDashBreakdownFilter('priority','${r.k}',this)">
-            <span class="ds-breakdown-name ${r.cls}">${r.label}</span>
-            <div class="ds-breakdown-bar-wrap"><div class="ds-breakdown-bar ${r.bar}" style="width:${Math.round(r.cnt/maxP*100)}%"></div></div>
-            <span class="ds-breakdown-count">${r.cnt}</span>
-        </div>`).join('');
+    const maxL = Math.max(...Object.values(labelCountMap), 1);
+    const labelEl = document.getElementById('dash-label-rows');
+    if (labelEl) {
+        labelEl.innerHTML = LABEL_DEFS.map(d => `
+            <div class="ds-breakdown-row" id="lrow-${d.k.replace(':','_')}" onclick="openDashBreakdownFilter('label','${d.k}',this)">
+                <span class="ds-breakdown-name" style="color:${d.color}">${d.label}</span>
+                <div class="ds-breakdown-bar-wrap"><div class="ds-breakdown-bar" style="width:${Math.round(labelCountMap[d.k]/maxL*100)}%;background:${d.color};opacity:.8"></div></div>
+                <span class="ds-breakdown-count">${labelCountMap[d.k]}</span>
+            </div>`).join('');
+    }
 
     // ── Assignee Top10 ──
     const assigneeMap = {}; // name -> {total, open, closed}
