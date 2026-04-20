@@ -2,8 +2,8 @@ import os
 import logging
 from pathlib import Path
 
-# 取代原有的 v1.2.0 為 v1.2.7
-APP_VERSION = "v1.2.7"
+# 升級至 v1.3.0: UI 統一化與體驗優化
+APP_VERSION = "v1.3.4"
 
 # ─── 日誌設定 ────────────────────────────────────────────────────────────
 logging.basicConfig(

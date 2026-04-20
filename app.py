@@ -1,6 +1,5 @@
 """
-app.py — Flask 後端主入口
-模組化重構版本：v1.2.7
+app.py — Flask 後端主入口 (v1.3.4)
 """
 
 import os

@@ -131,7 +131,11 @@ function refreshModelSelect() {
   models.forEach(item => {
     const opt = document.createElement("option");
     opt.value = item.model_id;
-    opt.textContent = `${item.label} (${item.model_id})`;
+    let labelText = item.label;
+    if (labelText.includes("Gemma 4")) {
+      labelText += " (測試中)";
+    }
+    opt.textContent = `${labelText} (${item.model_id})`;
     sel.appendChild(opt);
   });
   sel.value = models.some(item => item.model_id === current) ? current : models[0].model_id;

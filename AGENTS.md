@@ -10,8 +10,8 @@
 | 項目 | 說明 |
 |------|------|
 | **專案名稱** | GitLab Issue 整理工具 |
-| **目前版本** | v1.2.7 |
-| **技術棧** | Python 3.8+ / Flask / Selenium / Gemini CLI |
+| **目前版本** | v1.3.4 |
+| **技術棧** | Python 3 / Flask / Selenium / Gemini CLI |
 | **主資料夾** | `Gitlab feat.gemini/`（唯一工作目錄） |
 | **Git 遠端** | https://github.com/k61513-Wes/Gitlab-feat.gemini.git |
 
@@ -23,12 +23,13 @@
 |------|------|------|
 | **本文件** | `AGENTS.md` | 開發天條、規範、快速查詢 |
 | **產品需求（主文件）** | `docs/product/PRD.md` | 功能定義、核心流程、業務規則（概要） |
+| **User Flow** | `docs/product/user_flow.md` | 三大功能區塊完整操作流程、決策樹、狀態轉移與頁面跳轉路徑 |
 | **API 規格** | `docs/specs/API_SPEC.md` | API request/response、錯誤格式、HTTP 狀態碼 |
 | **安全規範** | `docs/security/SECURITY.md` | Token/密碼處理、去敏與落盤規則 |
 | **非功能需求** | `docs/quality/NFR.md` | 效能、可用性、可觀測性、相容性 |
 | **批次任務規格** | `docs/specs/BATCH_JOB_SPEC.md` | `job_id`、狀態機、重試與中止語義 |
 | **Excel 規格** | `docs/specs/EXCEL_SPEC.md` | 欄位契約、標籤映射、大批量效能策略 |
-| **架構總覽** | `docs/architecture/runtime-overview.md` | 系統拓樸、執行邊界與元件責任 |
+| **架構總覽** | `docs/architecture/runtime-overview.md` | 系統拓橲、MPA 架構、後端模組、資料流、設計原則 |
 | **本機安裝與啟動** | `docs/operations/local-setup.md` | 環境需求、安裝步驟、啟動與排錯 |
 | **發行說明** | `RELEASE_NOTES.md` | 每版新功能、修正、已知問題的對外摘要 |
 | **變更日誌** | `CHANGELOG.md` | 每次改動的完整細節紀錄 |
@@ -226,6 +227,12 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 
 | 日期 | 版本 | 說明 |
 |------|------|------|
+| 2026-04-20 | v1.3.4 | docs | 新增 `user_flow.md`；重寫 `runtime-overview.md`；補充 PRD 連線設定雙入口、Dashboard 儀表板互動細節、後端模組一覽表 |
+| 2026-04-20 | v1.3.4 | ui | `dashboard.html` | 篩選列表增加「顯示更多」分頁功能；修正 PES::Tech 圖示；統一趨勢圖標題字體 |
+| 2026-04-20 | v1.3.3 | ui | `dashboard.html`, `static/style.css` | 統一 Dashboard 篩選面板與主表格容器樣式，實現完全一致的滿版體驗 |
+| 2026-04-20 | v1.3.2 | ui | `dashboard.html`, `static/style.css` | 統一 Dashboard 分布圖展開列表為表格格式，補齊 Milestone/Assignee 欄位 |
+| 2026-04-20 | v1.3.1 | **UI 統一化第二階段**：全站字體大小標準化、Dashboard 「載入資料」按鈕添加 Emoji、Assignee 分布新增「隱藏已關閉」過濾與重排功能 |
+| 2026-04-20 | v1.3.0 | **UI 統一化與體驗優化**：全站 CSS 變數化、統一語義化 Emoji (📊📝⚙️👤🏁🏷️📅🚀💾🔍⏹🗑️)、字體縮放支援 Dashboard 統計卡片、移除頁面冗餘樣式、同步導航選單風格 |
 | 2026-04-19 | v1.2.7 | 狀態保持與體驗修復：加入 `sessionStorage` 恢復 Dashboard 狀態避免跳轉清空、補齊 Issue Grid Table 的排序/過濾關閉/動態 Click Popup 功能、修復背景載入無反應字樣殘留 |
 | 2026-04-19 | v1.2.1 | 架構重構：將 app.py 與 index.html 模組化拆分為 modules/ 與 static/ 資料夾結構 |
 | 2026-04-17 | v1.2.0 | AI 工作台化：新增三欄 layout、全域字體控制、LLM 結果卡片化、單筆/批次分段操作、Prompt Preview、outputs 搜尋與 raw/result 再處理 |

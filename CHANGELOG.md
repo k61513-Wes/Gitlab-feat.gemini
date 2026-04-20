@@ -4,6 +4,29 @@
 
 ---
 
+## v1.3.0
+
+### 2026-04-20
+
+| # | 日期 | 版本 | 類型 | 影響檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 121 | 2026-04-20 | v1.3.4 | docs | `docs/product/user_flow.md` | 新增 User Flow 文件，詳細描述三大功能區塊的完整操作流程與決策樹 |
+| 122 | 2026-04-20 | v1.3.4 | docs | `docs/architecture/runtime-overview.md` | 大幅更新架構總覽，補充 MPA 三頁面結構、前端狀態管理、模組表、Dashboard 資料流與設計原則 |
+| 123 | 2026-04-20 | v1.3.4 | docs | `docs/product/PRD.md` | 補充連線設定雙入口、Dashboard 儀表板互動細節、後端模組一覽表 |
+| 120 | 2026-04-20 | v1.3.4 | ui | `dashboard.html` | 篩選列表增加「顯示更多」分頁功能；修正 PES::Tech 圖示；統一趨勢圖標題字體 |
+| 119 | 2026-04-20 | v1.3.4 | ui | `dashboard.html`, `static/style.css` | 統一 Dashboard 篩選面板與主表格容器樣式，實現完全一致的滿版體驗 |
+| 118 | 2026-04-20 | v1.3.2 | ui | `dashboard.html`, `static/style.css` | 統一 Dashboard 分布圖展開列表為表格格式，補齊 Milestone/Assignee 欄位 |
+| 114 | 2026-04-20 | v1.3.1 | style | `static/style.css`, `*.html` | 全站字體標準化，提升區塊標題層級 |
+| 115 | 2026-04-20 | v1.3.1 | ui | `dashboard.html` | 載入按鈕添加 Emoji，Assignee 增加隱藏已關閉勾選框 |
+| 116 | 2026-04-20 | v1.3.1 | feat | `dashboard.html` | 實作 Assignee 分布過濾與根據開啟數重排功能 |
+| 117 | 2026-04-20 | v1.3.1 | docs | `app.py`, `config.py`, `docs/*` | 版本同步升級至 v1.3.1 |
+| 110 | 2026-04-20 | v1.3.0 | style | `static/style.css`, `dashboard.html` | 全站 CSS 變數化與收納，移除內聯樣式 |
+| 111 | 2026-04-20 | v1.3.0 | style | `*.html` | 統一全站 Emoji 圖示 (📊📝⚙️👤🏁🏷️📅🚀💾🔍⏹🗑️) |
+| 112 | 2026-04-20 | v1.3.0 | feat | `static/ui.js` | 優化字體縮放邏輯，支援 Dashboard 統計卡片與關鍵字縮放 |
+| 113 | 2026-04-20 | v1.3.0 | docs | `app.py`, `config.py`, `*.html`, `PRD.md` | 版本號同步升級至 v1.3.0 |
+
+---
+
 ## v1.2.7
 
 ### 2026-04-19
@@ -85,7 +108,7 @@
 | 047 | 2026-03-31 | v1.1.2 | fix | `requirements.txt` | 修正相依套件問題 |
 | 048 | 2026-03-31 | v1.1.2 | refactor | `app.py` | 重構 Gemini CLI 呼叫流程 |
 | 049 | 2026-03-31 | v1.1.2 | fix | `app.py` | 修正 Excel 下載 404 |
-| 050 | 2026-03-31 | v1.1.2 | fix | `app.py` | 移除 `shell=True` 風險 |
+| 050 | 2026-03-31 | v1.1.2 | fix | `app.py` | 移除 `shell=True` 風風險 |
 
 ---
 

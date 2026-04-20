@@ -38,6 +38,9 @@ function setTheme(theme) {
   localStorage.setItem("gitlab_ui_theme", normalized);
   const btn = id("theme-toggle");
   if (btn) btn.textContent = normalized === "light" ? "暗色" : "亮色";
+  if (window._dashChart && typeof renderDashboardStats === "function") {
+    renderDashboardStats();
+  }
 }
 
 function toggleTheme() {
