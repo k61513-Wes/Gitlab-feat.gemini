@@ -241,7 +241,7 @@ Header 提供字體大小連續調整（`−1 / px顯示 / +1`）與亮色 / 暗
 - Selenium 備用模式需 Chrome + ChromeDriver，API 模式不依賴此
 - LLM 不接受 Flash 模型（前後端雙重把關）
 - Gemini API Key 可從設定面板輸入（存入 `sessionStorage`），或於根目錄 `.env` 中設定 `GEMINI_API_KEY`
-- 敏感資訊處理與去敏規範依 `docs/security/SECURITY.md`
+- 敏感資訊處理（Token、密碼）預設由前端 sessionStorage 暫存，或讀取本地 `.env`，不寫入任何 log 或持久化儲存。
 
 ---
 
@@ -289,7 +289,7 @@ Header 提供字體大小連續調整（`−1 / px顯示 / +1`）與亮色 / 暗
 
 - UI/UX 完成度：同時含 `UI Done` + `UX Done` -> `✓`，否則 `0%`
 
-> Excel 欄位、映射與效能策略完整定義請見 `docs/specs/EXCEL_SPEC.md`。
+> Excel 欄位包含：ID、Title、State、Author、Assignee、Created At、Updated At、Closed At、Labels、Priority、Team、UI/UX 完成度等。
 
 ---
 
@@ -319,10 +319,6 @@ Header 提供字體大小連續調整（`−1 / px顯示 / +1`）與亮色 / 暗
 
 - `docs/product/user_flow.md`：使用者完整操作流程（三大功能區塊的決策樹與互動細節）
 - `docs/specs/API_SPEC.md`：API request/response、錯誤格式、狀態碼
-- `docs/security/SECURITY.md`：敏感資訊處理、去敏與落盤規範
-- `docs/quality/NFR.md`：效能/穩定性/可觀測性等非功能需求
-- `docs/specs/BATCH_JOB_SPEC.md`：批次任務狀態機、重試、中止語義
-- `docs/specs/EXCEL_SPEC.md`：Excel 欄位契約、映射與效能策略
 - `docs/architecture/runtime-overview.md`：執行架構、模組結構、資料流與設計原則
 - `docs/operations/local-setup.md`：本機安裝、啟動與排錯
 

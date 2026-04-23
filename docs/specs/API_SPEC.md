@@ -1,7 +1,7 @@
 # API 規格書 — GitLab Issue 整理工具
 
 **對應版本：v1.4.0**
-**最後更新：2026-04-21**
+**最後更新：2026-04-23**
 
 ---
 
@@ -65,15 +65,14 @@
 ## 3. API 端點定義
 
 ### 3.1 `GET /api/health`
-- 用途：健康檢查、Gemini CLI 狀態與模型選項設定
+- 用途：健康檢查、SDK 狀態與模型選項設定
 
 成功回應範例：
 
 ```json
 {
-  "gemini_cli": "gemini",
-  "cli_found": true,
-  "cli_path": "C:/Users/.../gemini.cmd",
+  "sdk": "google-genai",
+  "env_key_configured": true,
   "timeout": 300,
   "model_chain": [
     {
@@ -111,7 +110,7 @@
 ```
 
 ### 3.2 `POST /api/probe_models`
-- 用途：以短 timeout 驗證指定模型是否可由 Gemini CLI 受控呼叫
+- 用途：以短 timeout 驗證指定模型是否可由 SDK 受控呼叫
 - 備註：此端點用於模型探針，不屬於正式批次流程
 - timeout 預設採用 `GEMINI_PROBE_TIMEOUT`，目前預設值為 `12`
 
@@ -129,7 +128,6 @@ Response：
 
 ```json
 {
-  "cli_path": "C:/Users/.../gemini.cmd",
   "probe_timeout": 8,
   "results": [
     {
@@ -200,7 +198,7 @@ Response：
 ```
 
 ### 3.6 `POST /api/process`
-- 用途：送入 Gemini CLI 進行六區塊整理
+- 用途：送入 Gemini SDK 進行六區塊整理
 - 限制：不接受任何 Flash 模型
 - 前端行為：由 UI 於送出處理前以下拉選單選擇單一模型，不做自動 fallback
 
@@ -570,10 +568,7 @@ Response：
 ## 6. 文件關聯
 
 - 產品與流程：`docs/product/PRD.md`
-- 安全規範：`docs/security/SECURITY.md`
-- 非功能需求：`docs/quality/NFR.md`
-- 批次任務規格：`docs/specs/BATCH_JOB_SPEC.md`
-- Excel 規格：`docs/specs/EXCEL_SPEC.md`
+- 架構總覽：`docs/architecture/runtime-overview.md`
 
 ---
 

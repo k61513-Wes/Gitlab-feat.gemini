@@ -1,6 +1,6 @@
 # 執行架構總覽
 
-**對應版本：v1.3.4　　最後更新：2026-04-20**
+**對應版本：v1.4.0　　最後更新：2026-04-23**
 
 ---
 
@@ -19,11 +19,11 @@ Flask（Python venv）── app.py ──▶ modules/routes/ (Blueprint 分層)
     │
     ├── /api/scrape                              ──▶ Selenium + Chrome headless ──▶ GitLab 頁面
     │
-    ├── /api/process, /api/export               ──▶ Gemini CLI subprocess（禁 Flash 模型）
+    ├── /api/process, /api/export               ──▶ Gemini SDK（禁 Flash 模型）
     │
     ├── /api/batch_export_excel                 ──▶ GitLab API + openpyxl
     │
-    ├── /api/health, /api/probe_models          ── CLI 健康檢查與模型探針
+    ├── /api/health, /api/probe_models          ── SDK 健康檢查與模型探針
     │
     ├── /api/outputs, /api/outputs/<filename>   ── 歷史存檔讀寫
     │
@@ -31,7 +31,7 @@ Flask（Python venv）── app.py ──▶ modules/routes/ (Blueprint 分層)
 
 外部服務：
     ├── GitLab Server（內網或外網）
-    └── Gemini CLI（本機安裝，呼叫 Google AI API）
+    └── Gemini API（透過 google-genai SDK 呼叫）
 ```
 
 ---
@@ -43,7 +43,7 @@ Gitlab feat.gemini/
 ├── app.py                     # Flask 主入口，呼叫 register_all_routes()
 └── modules/
     ├── config.py              # 所有常數、環境變數、日誌設定、APP_VERSION
-    ├── gemini_cli.py          # Gemini CLI subprocess 封裝、Flash 禁用、模型探針
+    ├── llm_client.py          # Gemini SDK 封裝、Flash 禁用、模型探針
     ├── scraper.py             # GitLab API 爬取、Selenium 爬取、儲存輸出
     ├── excel_utils.py         # openpyxl Excel 生成、標籤映射業務邏輯
     └── routes/
@@ -107,7 +107,7 @@ if (window.S) {
 | **Flask** | modules/routes/ | 流程編排、資料驗證、錯誤處理、存檔命名 |
 | **GitLab API** | scraper.py | 優先路徑：REST API 取 Issue 內容、Milestone、Dashboard 資料 |
 | **Selenium** | scraper.py | 備用路徑：API 不可用時以 Chrome headless 模擬登入爬取 |
-| **Gemini CLI** | gemini_cli.py | LLM 摘要生成（六區塊結構化）與格式轉換（Export），以 subprocess 隔離 |
+| **Gemini SDK** | llm_client.py | LLM 摘要生成（六區塊結構化）與格式轉換（Export），以 google-genai 呼叫 |
 | **openpyxl** | excel_utils.py | Excel 生成，含標籤映射（Priority/Team/UI-UX）與欄位格式 |
 
 ---
@@ -129,13 +129,13 @@ GET /api/resolve_filter_url 或 /api/preview_issues
         │
         ├── 儲存 raw 至 outputs/raw/{repo}_{iid}_raw_{date}.txt
         │
-        ├── POST /api/process ──▶ Gemini CLI subprocess
+        ├── POST /api/process ──▶ Gemini SDK
         │       │ （禁 Flash 模型；輸入上限 40,000 字元）
         │       └── enforce_structure() 補齊六區塊
         │
         └── 儲存 result 至 outputs/results/{repo}_{iid}_{model}_{date}.md
         │
-        ├── POST /api/export ──▶ Gemini CLI 格式轉換（預設 JSON）
+        ├── POST /api/export ──▶ Gemini SDK 格式轉換（預設 JSON）
         │
 [前端 Step 3] 結果卡片化顯示 + 下載
 ```
@@ -174,14 +174,13 @@ POST /api/dashboard/data
 ### 7.1 本機優先
 - 服務預設綁定 `127.0.0.1:5000`，不對外提供公開服務
 
-### 7.2 程序隔離
-- Gemini CLI 以 subprocess 執行
-- Windows 下有強制清理 process tree 機制，避免孤立進程
-- CLI 異常不應直接拖垮 Flask 進程
+### 7.2 模組化與隔離
+- Gemini API 呼叫獨立封裝於 `llm_client.py`
+- 第三方 API 異常不應直接拖垮 Flask 進程
+- 全面支援 `/work_items/` 與 `/issues/` 兩種 GitLab 單據系統
 
 ### 7.3 安全邊界
-- 敏感資訊（Token、密碼）不落盤，僅存於前端記憶體或 sessionStorage
-- 去敏規則依 `docs/security/SECURITY.md`
+- 敏感資訊（Token、密碼）不落盤，僅存於前端記憶體、sessionStorage 或 `.env`
 - Flash 模型由後端 `is_disallowed_model()` 強制拒絕，前後端雙重把關
 
 ### 7.4 代理規避
@@ -197,6 +196,3 @@ POST /api/dashboard/data
 | 產品需求 | `docs/product/PRD.md` |
 | User Flow | `docs/product/user_flow.md` |
 | API 契約 | `docs/specs/API_SPEC.md` |
-| 安全規範 | `docs/security/SECURITY.md` |
-| 批次任務規格 | `docs/specs/BATCH_JOB_SPEC.md` |
-| Excel 規格 | `docs/specs/EXCEL_SPEC.md` |

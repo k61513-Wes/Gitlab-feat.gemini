@@ -1,6 +1,6 @@
 # User Flow — GitLab Issue 整理工具
 
-**對應版本：v1.3.4　　最後更新：2026-04-20**
+**對應版本：v1.4.0　　最後更新：2026-04-23**
 
 > 本文件描述使用者在系統三大功能區塊（連線設定、Dashboard、Issue 整理）的完整操作流程，
 > 包含決策分支、狀態轉移與頁面跳轉路徑。
@@ -53,17 +53,17 @@
         │  GitLab 密碼：**********                 │
         └─────────────────────────────────────────┘
         ┌─────────────────────────────────────────┐
-        │  Gemini CLI 逾時 (秒)：[300]             │
-        │  [檢查 Gemini CLI]  [儲存並進入 Dashboard] │
+        │  逾時 (秒)：[300]                        │
+        │  [檢查系統與模型]   [儲存並進入 Dashboard] │
         └─────────────────────────────────────────┘
                 │
-                ├── 點擊「檢查 Gemini CLI」
+                ├── 點擊「檢查系統與模型」
                 │       │
                 │       ▼
                 │   呼叫 GET /api/health
                 │       │
-                │       ├── cli_found: true ──▶ 顯示可用模型清單（green 狀態）
-                │       └── cli_found: false ──▶ 顯示錯誤提示，建議確認安裝路徑
+                │       ├── 成功 ──▶ 顯示可用模型清單（green 狀態）
+                │       └── 失敗 ──▶ 顯示錯誤提示
                 │
                 └── 點擊「儲存並進入 Dashboard」
                         │
@@ -381,7 +381,7 @@ smartLoadList() — 智慧辨識 URL 類型
         │       │              ✓ 狀態更新為 "LLM Done"
         │       │              → 顯示於 Step 3 結果區（六區塊卡片）
         │       │
-        │       └── 失敗（超時/Flash 被拒/CLI 未安裝）
+        │       └── 失敗（超時/Flash 被拒）
         │               ──▶ 標記 LLM 失敗，顯示錯誤訊息
         │
         ▼
@@ -429,7 +429,7 @@ smartLoadList() — 智慧辨識 URL 類型
 model_name 包含 "flash"？
         │
         ├── YES ──▶ 後端拒絕（HTTP 400: "不接受 Flash 模型"）
-        └── NO  ──▶ 繼續執行 Gemini CLI subprocess
+        └── NO  ──▶ 繼續執行 Gemini SDK
 ```
 
 #### 4.3.4 批次匯出 Excel
@@ -610,8 +610,8 @@ ui.js DOMContentLoaded 自動執行：
 |------|----------|------------------|----------|
 | Token 過期 | `/api/scrape_api` 回傳 401 | 紅色錯誤：「401 未授權，請確認 API Token 有效」 | 返回連線設定重新填入 Token |
 | Flash 模型被選 | `/api/process` 回傳 400 | 「不接受 Flash 模型」 | 改選 Gemini Pro 或 Gemma 模型 |
-| Gemini CLI 未安裝 | `/api/health` cli_found: false | CLI 未找到提示 | 確認安裝路徑或 `GEMINI_CLI_PATH` 環境變數 |
-| LLM 逾時 | subprocess timeout | 「執行超時」 | 增加 Timeout 秒數，或縮短 Issue 內容 |
+| API 未綁定 | `/api/health` env_key_configured: false | 未設定 API 金鑰 | 確認是否在 `.env` 或前端輸入金鑰 |
+| LLM 逾時 | SDK timeout | 「執行超時」 | 增加 Timeout 秒數，或縮短 Issue 內容 |
 | Project 找不到 | `/api/dashboard/data` 回傳 404 | 「找不到 Project ID xxx」 | 確認 Project ID 正確及 Token 有讀取權限 |
 | 篩選 URL 解析失敗 | `/api/resolve_filter_url` | 「無法解析 URL」 | 確認 URL 包含正確 GitLab 域名與路徑 |
 

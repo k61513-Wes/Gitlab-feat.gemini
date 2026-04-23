@@ -25,16 +25,12 @@
 | **產品需求（主文件）** | `docs/product/PRD.md` | 功能定義、核心流程、業務規則（概要） |
 | **User Flow** | `docs/product/user_flow.md` | 三大功能區塊完整操作流程、決策樹、狀態轉移與頁面跳轉路徑 |
 | **API 規格** | `docs/specs/API_SPEC.md` | API request/response、錯誤格式、HTTP 狀態碼 |
-| **安全規範** | `docs/security/SECURITY.md` | Token/密碼處理、去敏與落盤規則 |
-| **非功能需求** | `docs/quality/NFR.md` | 效能、可用性、可觀測性、相容性 |
-| **批次任務規格** | `docs/specs/BATCH_JOB_SPEC.md` | `job_id`、狀態機、重試與中止語義 |
-| **Excel 規格** | `docs/specs/EXCEL_SPEC.md` | 欄位契約、標籤映射、大批量效能策略 |
 | **架構總覽** | `docs/architecture/runtime-overview.md` | 系統拓橲、MPA 架構、後端模組、資料流、設計原則 |
 | **本機安裝與啟動** | `docs/operations/local-setup.md` | 環境需求、安裝步驟、啟動與排錯 |
 | **發行說明** | `RELEASE_NOTES.md` | 每版新功能、修正、已知問題的對外摘要 |
 | **變更日誌** | `CHANGELOG.md` | 每次改動的完整細節紀錄 |
 
-> `docs/product/PRD.md`、`RELEASE_NOTES.md`、`CHANGELOG.md` 為提交必更新文件；若異動涉及 API / 安全 / NFR / 批次 / Excel，需同步更新對應專項規格文件。
+> `docs/product/PRD.md`、`RELEASE_NOTES.md`、`CHANGELOG.md` 為提交必更新文件；若異動涉及 API，需同步更新對應專項規格文件。
 
 ---
 
@@ -42,7 +38,7 @@
 
 1. **版本號統一管理**：`app.py` 的 `APP_VERSION`、`index.html` 的 `<title>` 與頁頭 `<h1>`，以及所有文件的版本號，必須在同一次提交中保持一致。
 2. **文件四件套必更新**：每次 git commit 前，`docs/product/PRD.md`、`RELEASE_NOTES.md`、`CHANGELOG.md`、`AGENTS.md`（如有規範異動）都必須同步填寫。
-3. **專項規格必同步**：若改動涉及 API / 安全 / 非功能需求 / 批次任務 / Excel 匯出，必須同步更新對應專項規格文件。
+3. **專項規格必同步**：若改動涉及 API，必須同步更新對應專項規格文件。
 4. **outputs/ 不進版控**：`outputs/` 為程式執行產出，已加入 `.gitignore`，嚴禁手動 `git add outputs/`。
 5. **.venv/ 不進版控**：虛擬環境由使用者本地執行 `啟動工具.bat` 自動建立，不應被追蹤或提交。
 6. **API Token 不進程式碼**：認證資訊只存於前端記憶體或環境變數，嚴禁寫死在程式碼或文件中。
@@ -72,16 +68,10 @@ Gitlab feat.gemini/
 ├── docs/
 │   ├── product/
 │   │   ├── PRD.md
-│   │   ├── project-flow.md
+│   │   ├── user_flow.md
 │   │   └── README.md
 │   ├── specs/
-│   │   ├── API_SPEC.md
-│   │   ├── BATCH_JOB_SPEC.md
-│   │   └── EXCEL_SPEC.md
-│   ├── security/
-│   │   └── SECURITY.md
-│   ├── quality/
-│   │   └── NFR.md
+│   │   └── API_SPEC.md
 │   ├── architecture/
 │   │   ├── README.md
 │   │   └── runtime-overview.md

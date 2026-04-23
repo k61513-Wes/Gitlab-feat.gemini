@@ -11,7 +11,6 @@
 | 項目 | 建議版本 |
 |------|----------|
 | Python | 3.10+ |
-| Node.js | 18+ |
 | Google Chrome | 最新版 |
 | ChromeDriver | 與 Chrome 版本一致 |
 
@@ -73,10 +72,9 @@ python app.py
 
 ## 6. 常見問題
 
-### 6.1 找不到 `gemini`
+### 6.1 模組找不到 (`google-genai`)
 
-- 確認 `gemini --version` 可執行
-- 確認 npm global bin 已加入 PATH
+- 確認已在虛擬環境內執行 `pip install -r requirements.txt`
 
 ### 6.2 ChromeDriver 版本不符
 
@@ -93,4 +91,3 @@ python app.py
 
 - 架構說明：`docs/architecture/runtime-overview.md`
 - 產品需求：`docs/product/PRD.md`
-- 安全規範：`docs/security/SECURITY.md`
