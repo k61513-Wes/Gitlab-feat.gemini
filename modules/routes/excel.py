@@ -15,10 +15,16 @@ def api_preview_issues():
     except ImportError:
         return jsonify({"error": "缺少 requests 套件，請執行：pip install requests"}), 500
 
+    from modules.config import GITLAB_PRIVATE_TOKEN, GITLAB_PROJECT_ID
+
     body          = request.get_json(force=True)
     urls          = [u.strip() for u in (body.get("urls") or []) if u.strip()]
-    project_id    = body.get("project_id")
-    private_token = (body.get("private_token") or "").strip() or None
+    
+    client_project = body.get("project_id")
+    project_id    = client_project if client_project else GITLAB_PROJECT_ID
+    
+    client_token  = (body.get("private_token") or "").strip()
+    private_token = client_token if client_token else GITLAB_PRIVATE_TOKEN
 
     if not urls:
         return jsonify({"error": "請提供至少一個 Issue URL"}), 400
@@ -41,7 +47,7 @@ def api_preview_issues():
     errors   = []
 
     for url in urls:
-        m_iid = re.search(r"/issues/(\d+)", url)
+        m_iid = re.search(r"/(?:issues|work_items)/(\d+)(?:[/?#].*)?$", url)
         if not m_iid:
             errors.append({"url": url, "error": "無法解析 issue IID"})
             continue
@@ -69,10 +75,16 @@ def api_preview_issues():
 
 @excel_bp.route("/api/resolve_filter_url", methods=["POST"])
 def api_resolve_filter_url():
+    from modules.config import GITLAB_PRIVATE_TOKEN, GITLAB_PROJECT_ID
+    
     body          = request.get_json()
     filter_url    = (body.get("filter_url")    or "").strip()
-    project_id    = body.get("project_id")
-    private_token = (body.get("private_token") or "").strip()
+    
+    client_project = body.get("project_id")
+    project_id    = client_project if client_project else GITLAB_PROJECT_ID
+    
+    client_token  = (body.get("private_token") or "").strip()
+    private_token = client_token if client_token else GITLAB_PRIVATE_TOKEN
 
     if not filter_url:
         return jsonify({"error": "請提供篩選頁面 URL"}), 400
@@ -114,10 +126,16 @@ def api_batch_export_excel():
     except ImportError:
         return jsonify({"error": "缺少 openpyxl，請執行：pip install openpyxl"}), 500
 
+    from modules.config import GITLAB_PRIVATE_TOKEN, GITLAB_PROJECT_ID
+
     body          = request.get_json()
     urls          = [u.strip() for u in (body.get("urls") or []) if u.strip()]
-    project_id    = body.get("project_id")
-    private_token = (body.get("private_token") or "").strip() or None
+    
+    client_project = body.get("project_id")
+    project_id    = client_project if client_project else GITLAB_PROJECT_ID
+    
+    client_token  = (body.get("private_token") or "").strip()
+    private_token = client_token if client_token else GITLAB_PRIVATE_TOKEN
 
     if not urls:
         return jsonify({"error": "請提供至少一個 Issue URL"}), 400
@@ -134,7 +152,7 @@ def api_batch_export_excel():
     errors = []
 
     for url in urls:
-        m_iid = re.search(r"/issues/(\d+)", url)
+        m_iid = re.search(r"/(?:issues|work_items)/(\d+)(?:[/?#].*)?$", url)
         if not m_iid:
             errors.append({"url": url, "error": "無法解析 issue IID"})
             continue

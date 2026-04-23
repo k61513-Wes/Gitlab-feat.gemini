@@ -4,6 +4,33 @@
 
 ---
 
+## v1.4.0
+
+### 2026-04-22
+
+| # | 日期 | 版本 | 類型 | 影響檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 134 | 2026-04-22 | v1.4.0 | ui | `issuearrange.html` | 重構為獨立頁面（MPA），可折疊側邊欄 + 摺疊按鈕，狀態寫入 `localStorage` |
+| 135 | 2026-04-22 | v1.4.0 | feat | `issuearrange.html`, `static/ui.js` | 字體控制改為連續 +/- 調整模式（`adjustFontSize`），px 值存 `localStorage`，支援 S/M/L/XL 相容轉換 |
+| 136 | 2026-04-22 | v1.4.0 | feat | `issuearrange.html` | Step 3 結果預覽改為可拖曳雙欄設計（Scrape 原始 + LLM 結果），JS 拖曳分隔線 |
+| 137 | 2026-04-22 | v1.4.0 | feat | `issuearrange.html` | Step 2 新增 Prompt 看板可折疊區塊（預設折疊），Step 3 增加歷史存檔折疊面板 |
+| 138 | 2026-04-22 | v1.4.0 | feat | `issuearrange.html`, `static/app.js` | 模型選單新增 `onModelSelectChange` 回呼，佇列卡片指示器從 `qi-model-pill` 重構為 `qi-indicator` |
+| 139 | 2026-04-22 | v1.4.0 | fix | `static/style.css` | `.qi-title` 由 `white-space:nowrap` 改為最多2行截斷，修正長標題溢出問題 |
+| 140 | 2026-04-22 | v1.4.0 | feat | `static/ui.js` | DOMContentLoaded 增加 `gemini_api_key` sessionStorage 恢復，補齊 `cfg-gemini-key` 欄位自動填入 |
+| 141 | 2026-04-22 | v1.4.0 | fix | `index.html` | 版本號從 v1.3.4 同步至 v1.4.0 |
+| 142 | 2026-04-22 | v1.4.0 | feat | `modules/routes/excel.py`, `modules/routes/scrape.py` | 增強 URL 解析規則，支援 GitLab `/work_items/` 路徑並強化參數忽略處理 |
+
+### 2026-04-21
+
+| # | 日期 | 版本 | 類型 | 影響檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 124 | 2026-04-21 | v1.4.0 | feat | `modules/llm_client.py` | 建立 SDK 呼叫封裝，取代 `gemini_cli.py` |
+| 125 | 2026-04-21 | v1.4.0 | refactor | `app.py`, `modules/config.py` | 導入 `dotenv` 讀取 `.env` 支援環境變數 |
+| 126 | 2026-04-21 | v1.4.0 | feat | `static/app.js`, `static/ui.js` | 新增 `geminiApiKey` 儲存與傳遞邏輯 |
+| 127 | 2026-04-21 | v1.4.0 | ui | `*.html` | 增加 Gemini API Key 輸入框，版本號升級至 v1.4.0 |
+| 128 | 2026-04-21 | v1.4.0 | docs | `docs/*` | 全面更新 PRD, API_SPEC, SECURITY, local-setup 規格 |
+
+
 ## v1.3.0
 
 ### 2026-04-20

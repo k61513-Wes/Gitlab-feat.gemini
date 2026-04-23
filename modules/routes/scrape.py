@@ -23,7 +23,8 @@ def api_scrape():
     try:
         issue    = scrape_issue_selenium(base_url, username, password, url)
         raw_text = issue_to_text(issue)
-        saved_raw = save_output(raw_text, "raw", url)
+        save_to_disk = body.get("save_to_disk", True)
+        saved_raw = save_output(raw_text, "raw", url) if save_to_disk else None
 
         return jsonify({
             "raw_text":  raw_text,
@@ -36,10 +37,16 @@ def api_scrape():
 
 @scrape_bp.route("/api/scrape_api", methods=["POST"])
 def api_scrape_via_api():
+    from modules.config import GITLAB_PRIVATE_TOKEN, GITLAB_PROJECT_ID
+    
     body          = request.get_json()
     url           = (body.get("url")           or "").strip()
-    project_id    = body.get("project_id")
-    private_token = (body.get("private_token") or "").strip()
+    
+    client_project = body.get("project_id")
+    project_id    = client_project if client_project else GITLAB_PROJECT_ID
+    
+    client_token  = (body.get("private_token") or "").strip()
+    private_token = client_token if client_token else GITLAB_PRIVATE_TOKEN
 
     if not url:
         return jsonify({"error": "請填寫 Issue URL"}), 400
@@ -48,11 +55,11 @@ def api_scrape_via_api():
     project_id = resolve_project_id_from_url(url, private_token) or project_id
 
     if not project_id:
-        return jsonify({"error": "無法從網址解析且未提供 Project ID"}), 400
+        return jsonify({"error": "無法從網址解析，且未在 .env 亦未於設定中提供 Project ID"}), 400
     if not private_token:
-        return jsonify({"error": "請提供 API Token（在連線設定填入）"}), 400
+        return jsonify({"error": "請提供 API Token，或請於 .env 設定 GITLAB_PRIVATE_TOKEN"}), 400
 
-    m_iid = re.search(r"/issues/(\d+)", url)
+    m_iid = re.search(r"/(?:issues|work_items)/(\d+)(?:[/?#].*)?$", url)
     if not m_iid:
         return jsonify({"error": "無法從 URL 解析 Issue 編號"}), 400
     issue_iid = int(m_iid.group(1))
@@ -65,7 +72,8 @@ def api_scrape_via_api():
     try:
         issue     = scrape_issue_api(base_url, int(project_id), issue_iid, private_token)
         raw_text  = issue_to_text(issue)
-        saved_raw = save_output(raw_text, "raw", url)
+        save_to_disk = body.get("save_to_disk", True)
+        saved_raw = save_output(raw_text, "raw", url) if save_to_disk else None
 
         return jsonify({
             "raw_text":  raw_text,

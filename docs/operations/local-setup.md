@@ -1,4 +1,4 @@
-﻿# 本機安裝與啟動指南
+# 本機安裝與啟動指南
 
 ## 1. 目的
 
@@ -19,19 +19,14 @@
 
 ## 3. 安裝步驟
 
-### 3.1 安裝 Gemini CLI
-
-```bash
-npm install -g @google/gemini-cli
-gemini --version
+### 3.1 配置環境變數 (.env)
+在專案根目錄建立 `.env` 檔案，並填入以下內容：
+```env
+GEMINI_API_KEY=你的_GEMINI_API_金鑰
+GITLAB_PRIVATE_TOKEN=你的_GITLAB_TOKEN
+GITLAB_PROJECT_ID=預設_PROJECT_ID
 ```
-
-首次授權：
-
-```bash
-gemini
-# 完成授權後 Ctrl+C 離開
-```
+系統將優先採用前端輸入，前端留白時自動回退至此設定。
 
 ### 3.2 建立虛擬環境與安裝套件
 
@@ -58,8 +53,8 @@ python app.py
 ## 4. 驗證清單
 
 1. 開啟網頁後可進入主畫面
-2. 點「檢查 Gemini CLI」顯示就緒
-3. 可成功呼叫 `/api/health`
+2. 點「檢查系統與模型」顯示 SDK 載入成功與可用模型清單
+3. 可成功進行 Issue 爬取與 LLM 整理流程
 
 ---
 
@@ -67,12 +62,12 @@ python app.py
 
 | 變數 | 預設值 | 用途 |
 |------|--------|------|
-| `GEMINI_CLI_PATH` | `gemini` | 指定 CLI 路徑 |
+| `GEMINI_API_KEY` | `無` | Google Gemini API Key |
+| `GITLAB_PRIVATE_TOKEN` | `無` | GitLab 存取 Token |
 | `GEMINI_TIMEOUT` | `300` | LLM 逾時秒數 |
 | `MAX_INPUT_CHARS` | `40000` | 輸入長度上限 |
 | `FLASK_HOST` | `127.0.0.1` | 監聽位址 |
 | `FLASK_PORT` | `5000` | 監聽埠號 |
-| `FLASK_DEBUG` | `0` | 開發除錯開關 |
 
 ---
 

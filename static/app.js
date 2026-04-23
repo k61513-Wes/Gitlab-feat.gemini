@@ -32,32 +32,41 @@ async function api(path, body, signalOrMethod) {
 
 // ── Config ─────────────────────────────────────────────────────────────
 function saveConfig() {
-  const pid     = id("cfg-project-id").value.trim();
-  const tok     = id("cfg-token").value.trim();
-  const u       = id("cfg-user").value.trim();
-  const p       = id("cfg-pass").value.trim();
-  const timeout = parseInt(id("cfg-timeout").value.trim()) || 300;
+  const pid     = id("cfg-project-id") ? id("cfg-project-id").value.trim() : "";
+  const tok     = id("cfg-token") ? id("cfg-token").value.trim() : "";
+  const geminiKey = id("cfg-gemini-key") ? id("cfg-gemini-key").value.trim() : "";
+  const u       = id("cfg-user") ? id("cfg-user").value.trim() : "";
+  const p       = id("cfg-pass") ? id("cfg-pass").value.trim() : "";
+  const timeout = parseInt(id("cfg-timeout") ? id("cfg-timeout").value.trim() : 300) || 300;
 
   const hasApi = pid && tok;
   const hasSel = u && p;
 
-  if (!hasApi && !hasSel) {
-    showSt("st-config","error","請填寫 Project ID + API Token（或備用帳號密碼）");
-    return;
+  if (!hasApi && !hasSel && !geminiKey) {
+    if (id("cfg-project-id")) {
+       // Only show this error if it's the full config panel
+       showSt("st-config","error","建議最少填寫 Project ID 或 Gemini API Key");
+    }
   }
+  
   S.projectId = pid; S.token = tok;
   S.username  = u;   S.password = p;
+  S.geminiKey = geminiKey;
   S.timeout   = timeout;
 
   // 暫存設定到 localStorage
-  if (id("cfg-remember-pid").checked) {
+  if (id("cfg-remember-pid") && id("cfg-remember-pid").checked) {
     localStorage.setItem("gitlab_project_id", pid);
-  } else {
+  } else if (id("cfg-remember-pid")) {
     localStorage.removeItem("gitlab_project_id");
   }
   // Token 暫存（sessionStorage 開瀏覽器進程內有效）
   if (tok) sessionStorage.setItem("gitlab_token", tok);
   else sessionStorage.removeItem("gitlab_token");
+
+  // Gemini API Key 暫存
+  if (geminiKey) sessionStorage.setItem("gemini_api_key", geminiKey);
+  else sessionStorage.removeItem("gemini_api_key");
 
   const modeLabel = hasApi ? `API 模式（Project ${pid}）` : "Selenium 模式（備用）";
   showSt("st-config","success",`✓ 設定已儲存（${modeLabel}，Timeout ${timeout}s）`);
@@ -91,22 +100,20 @@ function saveConfig() {
 async function checkHealth() {
   const btn = id("btn-health");
   btn.disabled = true; btn.textContent = "檢查中...";
-  showSt("st-config","info","正在檢查 Gemini CLI...");
+  showSt("st-config","info","正在檢查 Gemini SDK 與模型...");
   try {
     const d = await api("/api/health");
     S.modelChain = Array.isArray(d.model_chain) ? d.model_chain : [];
     refreshModelSelect();
-    if (d.cli_found) {
-      let msg = `✓ Gemini CLI 可用\n路徑: ${d.gemini_cli}\nTimeout: ${d.timeout}s`;
-      const enabledModels = S.modelChain.filter(item => item && item.allowed).map(item => item.label);
-      if (enabledModels.length) {
-        msg += `\n可用模型: ${enabledModels.join(" / ")}`;
-      }
-      showSt("st-config","success", msg.split("\n").join(" | "));
+    const enabledModels = S.modelChain.filter(item => item && item.allowed).map(item => item.label);
+    const keyStatus = d.env_key_configured ? '✓ .env 已設定 Key' : '⚠ .env 未設定 Key，請從連線面板輸入';
+    if (enabledModels.length) {
+      showSt("st-config","success", `✓ SDK 就緒 | ${keyStatus} | 可用模型: ${enabledModels.join(' / ')} | Timeout: ${d.timeout}s`);
+    } else {
+      showSt("st-config","error", `找不到可用模型，請確認環境變數設定`);
     }
-    else showSt("st-config","error",`找不到 Gemini CLI：${d.gemini_cli}，請確認已安裝或設定 GEMINI_CLI_PATH`);
   } catch(e) { showSt("st-config","error",`健康檢查失敗：${e.message}`); }
-  finally { btn.disabled = false; btn.textContent = "檢查 Gemini CLI"; }
+  finally { btn.disabled = false; btn.textContent = "檢查系統與模型"; }
 }
 
 async function resolveModelChain() {
@@ -124,7 +131,7 @@ function refreshModelSelect() {
   const models = (S.modelChain || []).filter(item => item && item.allowed && item.model_id);
   sel.innerHTML = "";
   if (!models.length) {
-    sel.innerHTML = '<option value="">請先檢查 Gemini CLI</option>';
+    sel.innerHTML = '<option value="">請先檢查系統與模型</option>';
     S.selectedModel = "";
     return;
   }
@@ -132,15 +139,14 @@ function refreshModelSelect() {
     const opt = document.createElement("option");
     opt.value = item.model_id;
     let labelText = item.label;
-    if (labelText.includes("Gemma 4")) {
-      labelText += " (測試中)";
-    }
     opt.textContent = `${labelText} (${item.model_id})`;
     sel.appendChild(opt);
   });
   sel.value = models.some(item => item.model_id === current) ? current : models[0].model_id;
   S.selectedModel = sel.value;
   updateSidebarStatus();
+  // 充塃選單後立即連動更新尚未執行的卡片
+  onModelSelectChange();
 }
 
 function getSelectedModel() {
@@ -149,6 +155,21 @@ function getSelectedModel() {
   if (!selected || !model || !model.allowed) return null;
   S.selectedModel = selected;
   return model;
+}
+
+function onModelSelectChange() {
+  const model = getSelectedModel();
+  if (model && S.issueJobs && S.issueJobs.length > 0) {
+    let updated = false;
+    S.issueJobs.forEach(job => {
+      // 只有尚未執行 LLM 的卡片才更新顯示名稱
+      if (job.status.llm === "waiting") {
+        job.modelName = model.model_id;
+        updated = true;
+      }
+    });
+    if (updated) renderIssueList();
+  }
 }
 
 function isFilterUrl(text) {
@@ -168,15 +189,15 @@ function renderIssuePreviewList(issues, headerText) {
       : "rgba(110,110,136,0.2);color:var(--text-dim)";
     return `
       <div style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:flex-start;gap:8px">
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim);flex-shrink:0;padding-top:3px;min-width:30px">#${iss.iid}</span>
+        <span style="font-family:var(--mono);font-size:var(--font-size-tag);color:var(--text-dim);flex-shrink:0;padding-top:3px;min-width:30px">#${iss.iid}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${iss.title}">${iss.title}</div>
-          <div style="font-size:10px;color:var(--text-dim);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;font-family:var(--mono)">
+          <div style="font-size:var(--font-size-base);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${iss.title}">${iss.title}</div>
+          <div style="font-size:var(--font-size-tag);color:var(--text-dim);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;font-family:var(--mono)">
             <span title="被指派人">👤 ${assigneesText}</span>
             <span title="Milestone">🏁 ${milestoneText}</span>
           </div>
         </div>
-        <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:${stateColor};flex-shrink:0;white-space:nowrap">${iss.state}</span>
+        <span style="font-size:var(--font-size-tag);padding:1px 6px;border-radius:3px;background:${stateColor};flex-shrink:0;white-space:nowrap">${iss.state}</span>
       </div>`;
   }).join("");
   id("load-preview").style.display = "flex";
@@ -442,15 +463,20 @@ async function runScrape(job, ctx) {
   setJobStatus(job, "scrape", "running");
   showSt("st-batch","info",`Scrape #${job.id}：${shortUrl(job.url)}`);
   _abortController = new AbortController();
+  const saveToDisk = id("chk-save-to-disk") ? id("chk-save-to-disk").checked : true;
   const payload = ctx.useApi
-    ? { url: job.url, project_id: parseInt(S.projectId), private_token: S.token }
-    : { url: job.url, username: S.username, password: S.password };
+    ? { url: job.url, project_id: parseInt(S.projectId), private_token: S.token, save_to_disk: saveToDisk }
+    : { url: job.url, username: S.username, password: S.password, save_to_disk: saveToDisk };
   const scrapeRes = await api(ctx.useApi ? "/api/scrape_api" : "/api/scrape", payload, _abortController.signal);
   if (scrapeRes.error) throw new Error(scrapeRes.error);
   job.rawText = scrapeRes.raw_text || "";
   job.files.raw = scrapeRes.saved_raw || "";
   if (scrapeRes.issue && scrapeRes.issue.title) job.title = scrapeRes.issue.title;
   setJobStatus(job, "scrape", "success");
+  // 為選定卡片更新 Scrape 預覽面板
+  if (S.selectedIssueId === job.uid) {
+    showLastScrape(job.rawText);
+  }
   return scrapeRes;
 }
 
@@ -461,6 +487,7 @@ async function runLlm(job, selectedModel) {
   job.promptFilename = id("prompt-select").value || "";
   showSt("st-batch","info",`LLM #${job.id}：${selectedModel.label}`);
   _abortController = new AbortController();
+  const saveToDisk = id("chk-save-to-disk") ? id("chk-save-to-disk").checked : true;
   const processRes = await api("/api/process", {
     raw_text: job.rawText,
     system_prompt: id("process-prompt").value.trim(),
@@ -468,12 +495,14 @@ async function runLlm(job, selectedModel) {
     timeout: S.timeout || 300,
     model_name: selectedModel.model_id,
     model_label: selectedModel.label,
+    gemini_api_key: S.geminiKey || "",
+    save_to_disk: saveToDisk,
   }, _abortController.signal);
   if (processRes.error) throw new Error(processRes.error);
   job.llmResult = processRes.result || "";
   job.files.result = processRes.saved_result || "";
   setJobStatus(job, "llm", "success");
-  showLastResult(job.llmResult, job.exportResult || "", {
+  showLastResult(job.rawText, job.llmResult, {
     url: job.url,
     modelName: processRes.used_model || selectedModel.model_id,
   });
@@ -488,6 +517,7 @@ async function runExport(job) {
   const exportRes = await api("/api/export", {
     processed_text: job.llmResult,
     export_prompt: id("export-prompt").value.trim(),
+    gemini_api_key: S.geminiKey || "",
   }, _abortController.signal);
   if (exportRes.error) throw new Error(exportRes.error);
   job.exportResult = exportRes.output || "";
@@ -563,36 +593,26 @@ function renderIssueList() {
 }
 
 function renderIssueCard(job) {
-  const anyRunning = Object.values(job.status).includes("running") || S.running;
   const selected = S.selectedIssueId === job.uid ? " selected" : "";
-  const scrapeDisabled = anyRunning ? "disabled" : "";
-  const llmDisabled = anyRunning || job.status.scrape !== "success" ? "disabled" : "";
-  const exportDisabled = anyRunning || job.status.llm !== "success" ? "disabled" : "";
-  const files = [
-    job.files.raw ? `<span onclick="viewFile('${escapeHtml(job.files.raw.replace(/\\/g, "/").split("/").pop())}')" title="${escapeHtml(job.files.raw)}">[raw] ${escapeHtml(job.files.raw.replace(/\\/g, "/").split("/").pop())}</span>` : "",
-    job.files.result ? `<span onclick="viewFile('${escapeHtml(job.files.result.replace(/\\/g, "/").split("/").pop())}')" title="${escapeHtml(job.files.result)}">[result] ${escapeHtml(job.files.result.replace(/\\/g, "/").split("/").pop())}</span>` : "",
-  ].filter(Boolean).join("");
+  const modelHtml = job.modelName ? `<span style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:99px;border:1px solid rgba(61,214,140,0.35);color:var(--green);background:rgba(61,214,140,0.06);margin-left:6px;display:inline-block">${escapeHtml(job.modelName)}</span>` : "";
+
+  const getInd = (lbl, st) => `<div class="qi-indicator ${phaseClass(st)}" title="${phaseText(st)}"><div class="dot"></div><span>${lbl}</span></div>`;
+
+  const safeErrorObj = encodeURIComponent(job.error || "");
+  const copyErrorBtn = job.error ? `<button class="btn-ghost btn-sm" style="padding:2px 6px;font-size:10px;height:auto;min-height:0;margin-left:auto" onclick="navigator.clipboard.writeText(decodeURIComponent('${safeErrorObj}'));event.stopPropagation()">📋 Copy Error</button>` : "";
+  const errorHtml = job.error ? `<div class="qi-error" style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${escapeHtml(job.error)}<div style="display:flex">${copyErrorBtn}</div></div>` : "";
+
   return `
     <div class="queue-item ${phaseClass(job.status.export === "success" ? "success" : job.status.llm === "success" ? "running" : job.status.scrape)}${selected}" onclick="selectIssueJob('${escapeHtml(job.uid)}')">
-      <div class="qi-top">
-        <div class="qi-main">
-          <div class="qi-title" title="${escapeHtml(job.title)}">#${escapeHtml(job.id)} ${escapeHtml(job.title)}</div>
-          <div class="qi-url" title="${escapeHtml(job.url)}">${escapeHtml(job.url)}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:flex-end;gap:4px" class="qi-inds">
+          ${getInd('Scrape', job.status.scrape)}
+          ${getInd('LLM', job.status.llm)}
+          ${getInd('Export', job.status.export)}
         </div>
-        <div class="qi-actions" onclick="event.stopPropagation()">
-          <button class="btn-ghost" onclick="runScrapeById('${escapeHtml(job.uid)}')" ${scrapeDisabled}>Scrape</button>
-          <button class="btn-ghost" onclick="runLlmById('${escapeHtml(job.uid)}')" ${llmDisabled}>Run LLM</button>
-          <button class="btn-ghost" onclick="runExportById('${escapeHtml(job.uid)}')" ${exportDisabled}>Export</button>
-        </div>
+        <div class="qi-title" title="${escapeHtml(job.title)}">#${escapeHtml(job.id)} ${escapeHtml(job.title)}${modelHtml}</div>
       </div>
-      <div class="qi-phases">
-        <div class="qi-phase ${phaseClass(job.status.scrape)}"><div class="qi-phase-name">Scrape</div><div class="qi-phase-state">${phaseText(job.status.scrape)}</div></div>
-        <div class="qi-phase ${phaseClass(job.status.llm)}"><div class="qi-phase-name">LLM</div><div class="qi-phase-state">${phaseText(job.status.llm)}</div></div>
-        <div class="qi-phase ${phaseClass(job.status.export)}"><div class="qi-phase-name">Export</div><div class="qi-phase-state">${phaseText(job.status.export)}</div></div>
-      </div>
-      <div class="qi-models">${job.modelName ? `<span class="qi-model-pill ok">${escapeHtml(job.modelName)}</span>` : ""}${job.promptFilename ? `<span class="qi-model-pill">${escapeHtml(job.promptFilename)}</span>` : ""}</div>
-      ${job.error ? `<div class="qi-error">${escapeHtml(job.error)}</div>` : ""}
-      <div class="qi-files">${files}</div>
+      ${errorHtml}
     </div>`;
 }
 
@@ -600,11 +620,15 @@ function selectIssueJob(uid) {
   S.selectedIssueId = uid;
   const job = S.issueJobs.find(item => item.uid === uid);
   renderIssueList();
-  if (job && (job.llmResult || job.exportResult)) {
-    showLastResult(job.llmResult || "", job.exportResult || "", {
-      url: job.url,
-      modelName: job.modelName || "unknown-model",
-    });
+  if (job) {
+    if (job.rawText || job.llmResult) {
+      showLastResult(job.rawText || "", job.llmResult || "", {
+        url: job.url,
+        modelName: job.modelName || "unknown-model",
+      });
+    } else if (job.rawText) {
+      showLastScrape(job.rawText);
+    }
   }
 }
 
@@ -696,14 +720,65 @@ function renderLlmResult(container, text) {
   });
 }
 
-function showLastResult(result, exportOutput, meta = {}) {
-  renderLlmResult(id("last-result"), result);
-  id("last-export").textContent = exportOutput;
-  id("last-export").dataset.raw = exportOutput || "";
-  id("last-result-wrap").style.display = "grid";
-  id("last-result-empty").style.display = "none";
+function showLastScrape(rawText) {
+  const el = id("last-scrape");
+  if (el) el.value = rawText || "";
+  const wrap = id("last-result-wrap");
+  const empty = id("last-result-empty");
+  if (wrap && (rawText || "").trim()) {
+    wrap.style.display = "grid";
+    if (empty) empty.style.display = "none";
+  }
+}
+
+function showLastResult(rawText, llmResult, meta = {}) {
+  showLastScrape(rawText);
+  renderLlmResult(id("last-result"), llmResult);
+  const wrap = id("last-result-wrap");
+  const empty = id("last-result-empty");
+  if (wrap) wrap.style.display = "grid";
+  if (empty) empty.style.display = "none";
   S.lastResultMeta = { url: meta.url || "", modelName: meta.modelName || "unknown-model" };
-  S.lastExportMeta = { url: meta.url || "", modelName: meta.modelName || "unknown-model" };
+}
+
+function copyEl(elId) {
+  const el = id(elId);
+  if (!el) return;
+  const text = el.tagName === "TEXTAREA" ? el.value : (el.dataset.raw || el.innerText || "");
+  navigator.clipboard.writeText(text).then(() => {
+    // 小提示可選加
+  });
+}
+
+function clearEl(elId) {
+  const el = id(elId);
+  if (!el) return;
+  if (el.tagName === "TEXTAREA") el.value = "";
+  else el.innerHTML = "";
+  el.dataset.raw = "";
+}
+
+function saveElAsFile(elId, kind) {
+  const el = id(elId);
+  if (!el) return;
+  const text = el.tagName === "TEXTAREA" ? el.value : (el.dataset.raw || el.innerText || "");
+  const meta = S.lastResultMeta || {};
+  const filename = buildDownloadFilename(meta.url, meta.modelName || kind, "md");
+  const a = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" })),
+    download: filename,
+  });
+  a.click();
+}
+
+function togglePromptPanel() {
+  const body = id("prompt-panel-body");
+  const arrow = id("prompt-panel-arrow");
+  if (!body) return;
+  const isOpen = body.style.display === "flex";
+  body.style.display = isOpen ? "none" : "flex";
+  body.style.flexDirection = "column";
+  if (arrow) arrow.innerHTML = isOpen ? "&#9660;" : "&#9650;";
 }
 
 // ── History ──
@@ -789,6 +864,7 @@ async function rerunLlmFromModal() {
       timeout: S.timeout || 300,
       model_name: selectedModel.model_id,
       model_label: selectedModel.label,
+      gemini_api_key: S.geminiKey || "",
     });
     if (res.error) throw new Error(res.error);
     showLastResult(res.result, "", { modelName: selectedModel.model_id });
@@ -806,6 +882,7 @@ async function exportFromModal() {
     const res = await api("/api/export", {
       processed_text: S.activeModalFile.content,
       export_prompt: id("export-prompt").value.trim(),
+      gemini_api_key: S.geminiKey || "",
     });
     if (res.error) throw new Error(res.error);
     showLastResult(S.activeModalFile.content, res.output || "", { modelName: "history-result" });
@@ -840,15 +917,26 @@ async function onPromptSelect() {
   const filename = id("prompt-select").value;
   if (!filename) {
     id("prompt-preview").value = "";
-    return;
+  } else {
+    try {
+      const d = await api(`/api/prompts/${encodeURIComponent(filename)}`, null, "GET");
+      if (d.error) throw new Error(d.error);
+      id("process-prompt").value = d.content;
+      id("prompt-preview").value = d.content;
+      id("prompt-preview").readOnly = true;
+    } catch(e) { alert("載入模板失敗：" + e.message); }
   }
-  try {
-    const d = await api(`/api/prompts/${encodeURIComponent(filename)}`, null, "GET");
-    if (d.error) throw new Error(d.error);
-    id("process-prompt").value = d.content;
-    id("prompt-preview").value = d.content;
-    id("prompt-preview").readOnly = true;
-  } catch(e) { alert("載入模板失敗：" + e.message); }
+  
+  if (S.issueJobs && S.issueJobs.length > 0) {
+    let updated = false;
+    S.issueJobs.forEach(job => {
+      if (job.status.llm === "waiting") {
+        job.promptFilename = filename;
+        updated = true;
+      }
+    });
+    if (updated) renderIssueList();
+  }
 }
 
 function copyPromptPreview() {

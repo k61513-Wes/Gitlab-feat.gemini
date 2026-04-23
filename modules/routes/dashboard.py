@@ -1,7 +1,7 @@
 import re
 from flask import Blueprint, request, jsonify
 
-from modules.config import logger
+from modules.config import logger, GITLAB_PRIVATE_TOKEN, GITLAB_PROJECT_ID
 from modules.scraper import gitlab_api_get
 
 dashboard_bp = Blueprint('dashboard_bp', __name__)
@@ -15,13 +15,20 @@ def api_dashboard_data():
 
     body = request.get_json(force=True)
     repo_url = (body.get("repo_url") or "").strip()
-    project_id = body.get("project_id")
-    private_token = (body.get("private_token") or "").strip() or None
+    
+    # Check body, if empty, check env
+    project_id = body.get("project_id") or GITLAB_PROJECT_ID
+    
+    # Token from body -> header logic
+    client_token = (body.get("private_token") or "").strip()
+    private_token = client_token if client_token else GITLAB_PRIVATE_TOKEN
+    
     target_count = body.get("target_count", 500)
     page_offset = body.get("page_offset", 1)  # 開始的頁數，預設 1
 
     if not repo_url and not project_id:
-        return jsonify({"error": "請提供 Repo URL 或 Project ID"}), 400
+        return jsonify({"error": "請提供 Repo URL 或是直接在 .env 設定 Project ID"}), 400
+
 
     headers = {"PRIVATE-TOKEN": private_token} if private_token else {}
     base_url = ""

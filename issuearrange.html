@@ -2,31 +2,106 @@
 <html lang="zh-TW" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Issue 整理 — GitLab Issue 管理工具 v1.3.4</title>
+    <title>Issue 整理 — GitLab Issue 管理工具 v1.4.0</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="static/style.css?v=1.3.0">
+    <link rel="stylesheet" href="static/style.css?v=1.4.1">
+    <style>
+        /* ── 側邊欄摺疊按鈕（CSS 已移至 style.css） ── */
+        .sidebar-toggle-btn {
+            position: fixed; top: 50%; left: 236px; transform: translateY(-50%);
+            z-index: 200; width: 18px; height: 48px;
+            background: var(--bg3); border: 1px solid var(--border);
+            border-left: none; border-radius: 0 6px 6px 0;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            color: var(--text-dim); font-size: 12px;
+            transition: left 0.25s ease, background 0.15s;
+        }
+        .sidebar-toggle-btn:hover { background: var(--bg2); color: var(--text-bright); }
+        .sidebar.collapsed ~ * .sidebar-toggle-btn,
+        body.sidebar-collapsed .sidebar-toggle-btn { left: 0 !important; }
+
+        /* ── 可拖曳雙欄預覽 ── */
+        #preview-split-wrap {
+            display: flex; flex-direction: row; gap: 0;
+            width: 100%;
+            height: calc(100vh - 420px);
+            min-height: 300px;
+            max-height: 72vh;
+        }
+        #split-left, #split-right {
+            flex: 1; display: flex; flex-direction: column;
+            overflow: hidden; min-width: 80px;
+        }
+        #split-divider {
+            width: 6px; flex-shrink: 0; cursor: col-resize;
+            background: var(--border);
+            transition: background 0.15s;
+            position: relative;
+            user-select: none;
+        }
+        #split-divider:hover, #split-divider.dragging { background: var(--accent-dim); }
+        #split-divider::after {
+            content: '⋮'; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-dim); font-size: 14px; pointer-events: none;
+        }
+        #split-left .out-area {
+            flex: 1; resize: none;
+            height: calc(100% - 40px);
+            min-height: 0; max-height: none;
+        }
+        #split-right .final-out {
+            flex: 1; overflow-y: auto;
+            max-height: none; height: calc(100% - 40px);
+        }
+        #split-left .out-header, #split-right .out-header {
+            flex-shrink: 0; padding-bottom: 6px;
+        }
+
+        /* ── Step3 step-body 填滿 ── */
+        #step3 .step-body { min-height: 0; }
+        #last-result-wrap { display: none; flex-direction: column; gap: 0; }
+
+        /* ── 字體控制 +/- ── */
+        .font-control-new {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 12px; color: var(--text-dim);
+        }
+        .font-control-new button {
+            width: 28px; height: 28px; border-radius: 6px;
+            background: var(--bg3); border: 1px solid var(--border);
+            color: var(--text); font-size: 16px; line-height: 1;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background 0.15s, color 0.15s;
+        }
+        .font-control-new button:hover { background: var(--bg2); color: var(--text-bright); }
+        .font-control-new .font-size-display {
+            font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+            min-width: 32px; text-align: center;
+        }
+    </style>
 </head>
 <body class="workspace-ready">
 
 <header>
     <div class="logo">GL</div>
-    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:var(--font-size-tag);color:var(--text-dim);font-weight:normal;margin-left:6px">v1.3.4</span></h1>
+    <h1>GitLab Issue 管理工具 <span style="font-family:var(--mono);font-size:var(--font-size-tag);color:var(--text-dim);font-weight:normal;margin-left:6px">v1.4.0</span></h1>
     <div class="sub">📝 Issue 整理</div>
-    <div class="font-control">
+    <div class="font-control-new">
         字體
-        <div class="font-segment">
-            <button onclick="setFontSize('S')" data-font-size="S">S</button>
-            <button onclick="setFontSize('M')" data-font-size="M" class="active">M</button>
-            <button onclick="setFontSize('L')" data-font-size="L">L</button>
-            <button onclick="setFontSize('XL')" data-font-size="XL">XL</button>
-        </div>
+        <button onclick="adjustFontSize(-1)" title="縮小字體">−</button>
+        <span class="font-size-display" id="font-size-display">14px</span>
+        <button onclick="adjustFontSize(1)" title="放大字體">+</button>
     </div>
     <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">亮色</button>
 </header>
 
+<!-- 側邊欄摺疊按鈕 -->
+<button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="展開/收起側邊欄">‹</button>
+
 <div class="workspace-frame">
-    <aside class="sidebar">
+    <aside class="sidebar" id="main-sidebar">
         <div class="sidebar-title">Views</div>
         <nav class="nav-links">
             <a class="nav-link" href="/dashboard">📊 Dashboard</a>
@@ -35,8 +110,6 @@
         <div class="sidebar-spacer"></div>
         <div class="sidebar-title">Tools</div>
         <div class="sidebar-tools">
-            <button class="btn-ghost" onclick="openToolPanel('history')">📂 歷史存檔</button>
-            <button class="btn-ghost" onclick="openToolPanel('prompt')">💡 Prompt 看板</button>
             <button class="btn-ghost" id="btn-config-toggle" onclick="toggleConfigPanel()">⚙️ 連線設定</button>
         </div>
 
@@ -67,11 +140,15 @@
                     <input type="password" id="cfg-pass" style="font-size:11px;padding:6px 9px">
                 </div>
                 <div class="field">
-                    <label for="cfg-timeout" style="font-size:10px">逾時 (秒)</label>
+                    <label for="cfg-gemini-key" style="font-size:10px">Gemini API Key</label>
+                    <input type="password" id="cfg-gemini-key" placeholder="若已在 .env 設定可留白" style="font-size:11px;padding:6px 9px">
+                </div>
+                <div class="field">
+                    <label for="cfg-timeout" style="font-size:10px">API 逾時 (秒)</label>
                     <input type="text" id="cfg-timeout" value="300" style="font-size:11px;padding:6px 9px">
                 </div>
                 <div style="display:flex;gap:6px">
-                    <button class="btn-ghost" id="btn-health" onclick="checkHealth()" style="flex:1;font-size:11px;padding:6px 8px">檢查 CLI</button>
+                    <button class="btn-ghost" id="btn-health" onclick="checkHealth()" style="flex:1;font-size:11px;padding:6px 8px">檢查系統與模型</button>
                     <button class="btn-primary" onclick="saveConfig()" style="flex:1;font-size:11px;padding:6px 8px">儲存</button>
                 </div>
                 <div id="st-config" class="status hidden" style="font-size:11px"></div>
@@ -80,7 +157,6 @@
     </aside>
 
     <main class="layout" id="main-scroll">
-        <div id="view-issue-tool" class="main-col" style="display:contents">
         <div id="view-issue-tool" class="main-col" style="display:contents">
 
             <!-- Step 1: Input -->
@@ -123,20 +199,83 @@
                     <div class="step-badge" id="badge-step2">—</div>
                 </div>
                 <div class="step-body">
+
+                    <!-- 模型選擇 -->
                     <div class="field-row">
                         <div class="field">
                             <label for="run-model">模型選擇 (Model)</label>
-                            <select id="run-model" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:calc(var(--font-size-base) - 1px);padding:8px 12px;width:100%"></select>
-                            <div class="hint" style="margin-top:6px;font-size:10.5px">若模型選項為空，請先在連線設定進行「檢查 Gemini CLI」。不接受 Flash 系列模型。</div>
+                            <select id="run-model" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:calc(var(--font-size-base) - 1px);padding:8px 12px;width:100%" onchange="onModelSelectChange()"></select>
+                            <div class="hint" style="margin-top:6px;font-size:10.5px">若模型選項為空，請先在連線設定進行「檢查系統與模型」。不接受 Flash 系列模型。</div>
                         </div>
                     </div>
 
-                    <div class="btn-row" style="margin-top:6px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+                    <!-- Prompt 看板（預設折疊） -->
+                    <div style="border:1px solid var(--border);border-radius:var(--radius);margin-top:8px;overflow:hidden">
+                        <div id="prompt-panel-toggle"
+                             onclick="togglePromptPanel()"
+                             style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);cursor:pointer;user-select:none">
+                            <span style="font-size:var(--font-size-sm);font-weight:500;color:var(--text-bright)">
+                                💡 Prompt 看板（點擊展開調整）
+                            </span>
+                            <span id="prompt-panel-arrow" style="font-family:var(--mono);font-size:12px;color:var(--text-dim)">&#9660;</span>
+                        </div>
+                        <div id="prompt-panel-body" style="display:none;flex-direction:column;gap:10px;padding:12px">
+                            <div class="prompt-toolbar" style="flex-wrap:wrap;gap:6px">
+                                <label style="font-size:11px;color:var(--text-dim)">依模板套用</label>
+                                <select id="prompt-select" onchange="onPromptSelect()" style="flex:1"></select>
+                                <button class="btn-ghost" style="padding:4px 8px;font-size:11px" onclick="openNewPromptModal()" title="建立新模板">➕ 建立</button>
+                                <button class="btn-ghost" style="padding:4px 8px;font-size:11px;color:rgba(224,92,92,0.8)" onclick="deleteCurrentPrompt()" title="刪除選定模版">🗑️ 刪除</button>
+                                <div class="prompt-count" id="prompt-count"></div>
+                            </div>
+                            <div style="display:none">
+                                <textarea id="process-prompt">
+你是技術專案助理，請閱讀以下 GitLab Issue，整理成繁體中文的結構化摘要。
+
+「輸出格式規定」
+請嚴格依照以下六個區塊輸出，每個區塊都必須存在，不可省略：
+
+## 問題說明
+
+## 根本原因
+
+## 解決方式
+
+## 待辦事項
+
+## 討論共識
+
+## 補充內容
+                                </textarea>
+                            </div>
+                            <div>
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                                    <span style="font-size:11px;color:var(--text-dim)">LLM System Prompt (處理階段)</span>
+                                    <button class="btn-ghost btn-sm" onclick="togglePromptPreviewEdit()">✏️ 編輯草稿</button>
+                                </div>
+                                <textarea id="prompt-preview" class="out-area" style="height:160px" readonly></textarea>
+                            </div>
+                            <div class="prompt-preview-actions">
+                                <button class="btn-primary" onclick="savePromptOverwrite()">覆蓋儲存此模板</button>
+                                <div style="width:1px;height:24px;background:var(--border);margin:0 4px"></div>
+                                <input type="text" id="prompt-new-name" placeholder="另存為新模板檔名 (如 backend_fix)">
+                                <button class="btn-ghost" onclick="savePromptFromPreview(false)">另存新模板</button>
+                            </div>
+                            <div class="hint">編輯後請點擊儲存，方能套用於後續的批次處理中。</div>
+                        </div>
+                    </div>
+
+                    <!-- 執行按鈕區 -->
+                    <div class="btn-row" style="margin-top:10px;padding-bottom:12px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:6px;align-items:center">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:var(--font-size-sm);color:var(--text-dim);white-space:nowrap">
+                            <input type="checkbox" id="chk-save-to-disk" style="width:auto"
+                                   title="勾選後執行 Scrape/LLM 時將自動儲存 .md 檔案到專案目錄">
+                            <span>執行並儲存</span>
+                        </label>
+                        <div style="flex:1"></div>
                         <button class="btn-primary" id="btn-start" onclick="startBatch()">🚀 執行全部階段 (Scrape+LLM+Export)</button>
                         <button class="btn-ghost" id="btn-scrape-only" onclick="runBatch('scrape')">執行 Scrape</button>
                         <button class="btn-ghost" id="btn-llm-only" onclick="runBatch('llm')">執行 LLM</button>
                         <button id="btn-stop" onclick="stopBatch()" style="color:var(--red);background:rgba(224,92,92,0.12);border:1px solid rgba(224,92,92,0.3)" disabled>⏹ 中止</button>
-                        <div style="flex:1"></div>
                         <button class="btn-excel" id="btn-excel" onclick="exportExcel()">⬇︎ 批次匯出 Excel</button>
                     </div>
 
@@ -155,33 +294,74 @@
                     <div class="step-num"><span class="step-num-inner">3</span></div>
                     <div>
                         <div class="step-title">結果預覽</div>
-                        <div class="step-sub">檢視目前選擇 Issue 的 LLM 整理摘要與 Export 結果</div>
+                        <div class="step-sub">檢視目前選擇 Issue 的 Scrape 原始內容與 LLM 整理摘要</div>
                     </div>
                     <div class="step-badge" id="badge-step3">—</div>
                 </div>
                 <div class="step-body">
+
+                    <!-- 歷史存檔面板（折疊式） -->
+                    <div style="border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden">
+                        <div id="history-panel-toggle"
+                             onclick="toggleHistoryPanel()"
+                             style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg3);cursor:pointer;user-select:none">
+                            <span style="font-size:var(--font-size-sm);font-weight:500;color:var(--text-bright)">
+                                📂 歷史存檔（點擊展開）
+                            </span>
+                            <span id="history-panel-arrow" style="font-family:var(--mono);font-size:12px;color:var(--text-dim)">&#9660;</span>
+                        </div>
+                        <div id="history-panel-body" style="display:none;flex-direction:column;gap:8px;padding:12px">
+                            <div class="history-tools" style="display:flex;gap:8px">
+                                <input type="text" id="history-search" placeholder="檔名搜尋..." oninput="renderHistoryList()" style="flex:1">
+                                <select id="history-kind" onchange="renderHistoryList()">
+                                    <option value="all">全部種類</option>
+                                    <option value="raw">爬取原始</option>
+                                    <option value="result">LLM 整理</option>
+                                    <option value="excel">Excel</option>
+                                </select>
+                            </div>
+                            <div class="history-list" id="history-list"></div>
+                        </div>
+                    </div>
+
                     <div id="last-result-empty" style="padding:40px 0;text-align:center;color:var(--text-dim);font-family:var(--mono);font-size:var(--font-size-tag)">
                         (尚無結果，請先在上一步選擇卡片或執行處理)
                     </div>
-                    <div id="last-result-wrap">
-                        <div class="result-pane">
-                            <div class="out-header">
-                                <div class="out-label">LLM 結構化摘要</div>
-                                <button class="btn-ghost btn-sm" onclick="downloadLastResult()">💾 儲存 MD</button>
-                            </div>
-                            <div id="last-result" class="final-out result-sections"></div>
-                        </div>
-                        <div class="export-pane">
-                            <div class="out-header">
-                                <div class="out-label">Export 結果 (JSON 等)</div>
-                                <div class="btn-row">
-                                    <button class="btn-ghost btn-sm" onclick="copyEl('last-export')">複製</button>
-                                    <button class="btn-ghost btn-sm" onclick="downloadLastExport()">💾 儲存 TXT</button>
+
+                    <!-- 可拖曳雙欄預覽 -->
+                    <div id="last-result-wrap" style="display:none;flex-direction:column">
+                        <div id="preview-split-wrap">
+                            <!-- 左：Scrape 結果 -->
+                            <div id="split-left">
+                                <div class="out-header">
+                                    <div class="out-label">🔍 Scrape 結果預覽</div>
+                                    <div class="btn-row" style="gap:4px">
+                                        <button class="btn-ghost btn-sm" onclick="copyEl('last-scrape')">📋 複製</button>
+                                        <button class="btn-ghost btn-sm" onclick="saveElAsFile('last-scrape', 'scrape')">💾 儲存 MD</button>
+                                        <button class="btn-ghost btn-sm" onclick="clearEl('last-scrape')">❌ 清除</button>
+                                    </div>
                                 </div>
+                                <textarea id="last-scrape" class="out-area" readonly></textarea>
                             </div>
-                            <textarea id="last-export" class="out-area" style="flex:1" readonly></textarea>
+
+                            <!-- 拖曳分隔線 -->
+                            <div id="split-divider"></div>
+
+                            <!-- 右：LLM 結果 -->
+                            <div id="split-right">
+                                <div class="out-header">
+                                    <div class="out-label">🤖 LLM 結果預覽</div>
+                                    <div class="btn-row" style="gap:4px">
+                                        <button class="btn-ghost btn-sm" onclick="copyEl('last-result')">📋 複製</button>
+                                        <button class="btn-ghost btn-sm" onclick="saveElAsFile('last-result', 'result')">💾 儲存 MD</button>
+                                        <button class="btn-ghost btn-sm" onclick="clearEl('last-result')">❌ 清除</button>
+                                    </div>
+                                </div>
+                                <div id="last-result" class="final-out result-sections"></div>
+                            </div>
                         </div>
                     </div>
+
                 </div>
             </section>
         </div>
@@ -192,7 +372,7 @@
 <div class="modal-backdrop" id="modal" onclick="closeModal(event)">
     <div class="modal">
         <div class="modal-header">
-            <div class="modal-title" id="modal-title">file.txt</div>
+            <div class="modal-title" id="modal-title">file.md</div>
             <button class="modal-close" onclick="closeModalDirect()">&times;</button>
         </div>
         <div class="modal-body">
@@ -205,87 +385,6 @@
                 <button class="btn-primary" id="modal-export-result" style="display:none" onclick="exportFromModal()">以目前 Prompt 重新 Export</button>
             </div>
             <button class="btn-ghost" onclick="closeModalDirect()">關閉</button>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Sidebar / Tool Panel -->
-<div class="tool-panel-backdrop" id="tool-panel-modal" onclick="closeToolPanel(event)">
-    <div class="tool-panel-shell" onclick="event.stopPropagation()">
-        <div class="tool-panel-header">
-            <div class="tool-panel-tabs">
-                <button class="btn-ghost btn-sm" id="tool-tab-history" onclick="switchToolPanel('history')">歷史存檔</button>
-                <button class="btn-ghost btn-sm" id="tool-tab-prompt" onclick="switchToolPanel('prompt')">Prompt Review</button>
-            </div>
-            <button class="modal-close" onclick="closeToolPanelDirect()">&times;</button>
-        </div>
-        <div class="tool-panel-content" id="side-col" data-active-panel="history">
-            <div class="history-panel">
-                <div class="history-tools">
-                    <input type="text" id="history-search" placeholder="檔名搜尋..." oninput="renderHistoryList()">
-                    <select id="history-kind" onchange="renderHistoryList()">
-                        <option value="all">全部種類</option>
-                        <option value="raw">爬取原始</option>
-                        <option value="result">LLM 整理</option>
-                        <option value="excel">Excel</option>
-                    </select>
-                </div>
-                <div class="history-list" id="history-list"></div>
-            </div>
-
-            <div class="prompt-preview">
-                <div class="prompt-toolbar">
-                    <label>依模板套用</label>
-                    <select id="prompt-select" onchange="onPromptSelect()"></select>
-                    <button class="btn-ghost" style="padding:4px 8px;font-size:11px" onclick="openNewPromptModal()" title="建立新模板">➕ 建立</button>
-                    <button class="btn-ghost" style="padding:4px 8px;font-size:11px;color:rgba(224,92,92,0.8)" onclick="deleteCurrentPrompt()" title="刪除選定模版">🗑️ 刪除</button>
-                    <div class="prompt-count" id="prompt-count"></div>
-                </div>
-                <div style="display:none">
-                    <textarea id="process-prompt">
-你是技術專案助理，請閱讀以下 GitLab Issue，整理成繁體中文的結構化摘要。
-
-【輸出格式規定】
-請嚴格依照以下六個區塊輸出，每個區塊都必須存在，不可省略：
-
-## 問題說明
-（描述 Issue 的背景與問題）
-
-## 根本原因
-（分析問題的根本原因，若不清楚請填「尚未確認」）
-
-## 解決方式
-（說明已採取或建議的解決方式，若尚無請填「尚未決定」）
-
-## 待辦事項
-（條列式列出待辦，若無請填「無」）
-
-## 討論共識
-（整理留言中的討論結論，若無留言請填「無」）
-
-## 補充內容
-（無法歸入以上分類的其他資訊，若無請填「無」）
-                    </textarea>
-                </div>
-                <div class="out-label" style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
-                    <span>LLM System Prompt (處理階段)</span>
-                    <button class="btn-ghost btn-sm" onclick="togglePromptPreviewEdit()">✏️ 編輯草稿</button>
-                </div>
-                <textarea id="prompt-preview" class="out-area" readonly></textarea>
-                <div class="prompt-preview-actions">
-                    <button class="btn-primary" onclick="savePromptOverwrite()">覆蓋儲存此模板</button>
-                    <div style="width:1px;height:24px;background:var(--border);margin:0 4px"></div>
-                    <input type="text" id="prompt-new-name" placeholder="另存為新模板檔名 (如 backend_fix)">
-                    <button class="btn-ghost" onclick="savePromptFromPreview(false)">另存新模板</button>
-                </div>
-                <div class="hint">編輯後請點擊儲存，方能套用於後續的批次處理中。</div>
-                <div class="step-divider" style="margin:20px 0"></div>
-                <div class="out-header">
-                    <div class="out-label">Export Prompt (轉換階段)</div>
-                </div>
-                <textarea id="export-prompt" class="out-area" placeholder="請將以上整理好的 Issue 摘要，轉換成以下 JSON 格式輸出..."></textarea>
-                <div class="hint">留空則使用預設 JSON 結構導出提示詞</div>
-            </div>
         </div>
     </div>
 </div>
@@ -315,8 +414,8 @@
     </div>
 </div>
 
-<script src="static/ui.js?v=1.2.7"></script>
-<script src="static/app.js?v=1.2.7"></script>
+<script src="static/ui.js?v=1.4.1"></script>
+<script src="static/app.js?v=1.4.1"></script>
 <script>
 // issuearrange 頁：覆蓋 switchMainView 改為頁面跳轉
 window.switchMainView = function(v) {
@@ -324,6 +423,86 @@ window.switchMainView = function(v) {
     else if (v === 'issue-tool') { /* 已在此頁，不動 */ }
     else if (v === 'login') window.location.href = '/login';
 };
+
+// ── 側邊欄摺疊 ──
+function toggleSidebar() {
+    const sidebar = document.getElementById('main-sidebar');
+    const btn = document.getElementById('sidebar-toggle-btn');
+    const collapsed = sidebar.classList.toggle('collapsed');
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    btn.textContent = collapsed ? '›' : '‹';
+    // 展開時 sidebar width 是 236px，收起是 0
+    btn.style.left = collapsed ? '0' : '236px';
+    localStorage.setItem('sidebar_collapsed', collapsed ? '1' : '0');
+}
+
+// ── 歷史存檔面板切換 ──
+function toggleHistoryPanel() {
+    const body = document.getElementById('history-panel-body');
+    const arrow = document.getElementById('history-panel-arrow');
+    if (!body) return;
+    const isOpen = body.style.display === 'flex';
+    body.style.display = isOpen ? 'none' : 'flex';
+    body.style.flexDirection = 'column';
+    if (arrow) arrow.innerHTML = isOpen ? '&#9660;' : '&#9650;';
+    if (!isOpen && window.loadHistory) window.loadHistory();
+}
+
+// ── 可拖曳分隔線 ──
+(function initDragDivider() {
+    document.addEventListener('DOMContentLoaded', () => {
+        const divider = document.getElementById('split-divider');
+        const left    = document.getElementById('split-left');
+        const right   = document.getElementById('split-right');
+        const wrap    = document.getElementById('preview-split-wrap');
+        if (!divider || !left || !right || !wrap) return;
+
+        let dragging = false, startX = 0, startLeftW = 0;
+
+        divider.addEventListener('mousedown', e => {
+            dragging = true;
+            startX = e.clientX;
+            startLeftW = left.getBoundingClientRect().width;
+            divider.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            const totalW = wrap.getBoundingClientRect().width - 6; // 6 = divider width
+            const newLeftW = Math.max(80, Math.min(totalW - 80, startLeftW + dx));
+            const newRightW = totalW - newLeftW;
+            left.style.flex = 'none';
+            left.style.width = newLeftW + 'px';
+            right.style.flex = 'none';
+            right.style.width = newRightW + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!dragging) return;
+            dragging = false;
+            divider.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        });
+    });
+})();
+
+// ── 初始化側邊欄狀態 ──
+document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('sidebar_collapsed') === '1') {
+        const sidebar = document.getElementById('main-sidebar');
+        const btn = document.getElementById('sidebar-toggle-btn');
+        if (sidebar) sidebar.classList.add('collapsed');
+        if (btn) {
+            btn.textContent = '›';
+            btn.style.left = '0';
+        }
+        document.body.classList.add('sidebar-collapsed');
+    }
+});
 </script>
 </body>
 </html>

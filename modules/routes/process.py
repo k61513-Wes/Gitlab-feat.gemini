@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 
-from modules.config import PROCESS_SYSTEM_PROMPT, GEMINI_TIMEOUT, logger
-from modules.gemini_cli import call_gemini_cli, enforce_structure, is_disallowed_model
+from modules.config import PROCESS_SYSTEM_PROMPT, GEMINI_TIMEOUT, GEMINI_API_KEY, logger
+from modules.llm_client import call_gemini_api, enforce_structure, is_disallowed_model
 from modules.scraper import save_output
 
 process_bp = Blueprint('process_bp', __name__)
@@ -15,6 +15,10 @@ def api_process():
     model_name    = (body.get("model_name")    or "").strip()
     model_label   = (body.get("model_label")   or "").strip()
     timeout       = body.get("timeout")
+    client_api_key= (body.get("gemini_api_key") or "").strip()
+    
+    api_key_to_use = client_api_key if client_api_key else GEMINI_API_KEY
+    save_to_disk = body.get("save_to_disk", True)
     
     if timeout is not None:
         try:
@@ -29,17 +33,18 @@ def api_process():
         return jsonify({"error": "不接受 Flash 模型"}), 400
 
     try:
-        logger.info("api_process start model=%s model_label=%s timeout=%s raw_text_len=%s url=%s", model_name or "<default>", model_label or "", timeout if timeout is not None else GEMINI_TIMEOUT, len(raw_text), url or "")
+        logger.info("api_process start model=%s model_label=%s timeout=%s raw_text_len=%s url=%s API_Key_Provided=%s", model_name or "<default>", model_label or "", timeout if timeout is not None else GEMINI_TIMEOUT, len(raw_text), url or "", bool(api_key_to_use))
         effective_prompt = system_prompt or PROCESS_SYSTEM_PROMPT
-        result = call_gemini_cli(
+        result = call_gemini_api(
             effective_prompt,
             raw_text,
             timeout=timeout,
             model_name=model_name or None,
+            api_key=api_key_to_use
         )
 
         result = enforce_structure(result)
-        saved_result = save_output(result, "result", url, model_name=model_name) if url else None
+        saved_result = save_output(result, "result", url, model_name=model_name) if (url and save_to_disk) else None
         logger.info("api_process success model=%s saved_result=%s url=%s", model_name or "<default>", saved_result or "", url or "")
 
         return jsonify({
@@ -61,6 +66,9 @@ def api_export():
     body           = request.get_json()
     processed_text = (body.get("processed_text") or "").strip()
     export_prompt  = (body.get("export_prompt")  or "").strip()
+    client_api_key = (body.get("gemini_api_key") or "").strip()
+
+    api_key_to_use = client_api_key if client_api_key else GEMINI_API_KEY
 
     if not processed_text:
         return jsonify({"error": "processed_text 不可為空"}), 400
@@ -81,9 +89,10 @@ def api_export():
     full_user = f"{processed_text}\n\n---\n\n{export_prompt or default_export_prompt}"
 
     try:
-        output = call_gemini_cli(export_system, full_user)
+        output = call_gemini_api(export_system, full_user, api_key=api_key_to_use)
         return jsonify({"output": output})
     except RuntimeError as e:
         return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": f"未知錯誤：{e}"}), 500
+

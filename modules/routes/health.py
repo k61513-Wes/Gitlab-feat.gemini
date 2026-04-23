@@ -1,9 +1,7 @@
 import os
-import shutil
 from flask import Blueprint, request, jsonify
 
 from modules.config import (
-    GEMINI_CLI, 
     GEMINI_TIMEOUT, 
     GEMINI_PROBE_TIMEOUT, 
     MAX_INPUT_CHARS,
@@ -11,21 +9,21 @@ from modules.config import (
     OUTPUT_RAW, 
     OUTPUT_RESULTS, 
     OUTPUT_EXCEL,
+    GEMINI_API_KEY,
     logger
 )
-from modules.gemini_cli import _resolve_gemini_executable, get_model_chain, probe_gemini_model
+from modules.llm_client import get_model_chain, probe_gemini_model_api
 
 health_bp = Blueprint('health_bp', __name__)
 
 @health_bp.route("/api/health", methods=["GET"])
 def api_health():
-    cli_path  = _resolve_gemini_executable()
-    available = os.path.isfile(cli_path) or bool(shutil.which(GEMINI_CLI))
+    # 改為確認是否有在本機端配好環境變數
+    env_key_configured = bool(GEMINI_API_KEY)
 
     return jsonify({
-        "gemini_cli":      GEMINI_CLI,
-        "cli_found":       available,
-        "cli_path":        str(cli_path),
+        "sdk":             "google-genai",
+        "env_key_configured": env_key_configured,
         "timeout":         GEMINI_TIMEOUT,
         "max_input_chars": MAX_INPUT_CHARS,
         "output_dir":         str(OUTPUT_DIR.resolve()),
@@ -41,6 +39,9 @@ def api_probe_models():
     body = request.get_json(force=True) or {}
     models = body.get("models") or []
     timeout = body.get("timeout")
+    client_api_key = body.get("gemini_api_key") or ""
+    
+    api_key_to_use = client_api_key.strip() if client_api_key.strip() else GEMINI_API_KEY
 
     if not isinstance(models, list) or not models:
         return jsonify({"error": "models 必須為非空陣列"}), 400
@@ -54,11 +55,11 @@ def api_probe_models():
     if not cleaned_models:
         return jsonify({"error": "models 必須包含至少一個有效模型名稱"}), 400
 
-    logger.info("api_probe_models start models=%s timeout=%s", cleaned_models, timeout if timeout else GEMINI_PROBE_TIMEOUT)
-    results = [probe_gemini_model(model_name, timeout=timeout) for model_name in cleaned_models]
+    logger.info("api_probe_models start models=%s timeout=%s API_Key_Provided=%s", cleaned_models, timeout if timeout else GEMINI_PROBE_TIMEOUT, bool(api_key_to_use))
+    results = [probe_gemini_model_api(model_name, timeout=timeout, api_key=api_key_to_use) for model_name in cleaned_models]
     logger.info("api_probe_models done results=%s", [{k: r.get(k) for k in ("model", "ok", "status", "returncode")} for r in results])
     return jsonify({
-        "cli_path": str(_resolve_gemini_executable()),
         "probe_timeout": timeout if (timeout and timeout > 0) else GEMINI_PROBE_TIMEOUT,
         "results": results,
     })
+

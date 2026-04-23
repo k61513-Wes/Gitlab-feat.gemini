@@ -67,7 +67,7 @@ def save_output(content: str, kind: str, url: str, model_name: str = None) -> st
           "result" → outputs/results/
     回傳：寫入的檔案路徑（字串）
     """
-    filename = build_output_filename(url, model_name=model_name, kind=kind, ext="txt")
+    filename = build_output_filename(url, model_name=model_name, kind=kind, ext="md")
     subdir   = OUTPUT_RAW if kind == "raw" else OUTPUT_RESULTS
     filepath = subdir / filename
     if filepath.exists():
@@ -84,8 +84,10 @@ def save_output(content: str, kind: str, url: str, model_name: str = None) -> st
 def list_outputs() -> list:
     """列出 raw、results、excel 下所有輸出檔，依時間倒序。"""
     all_files = (
-        list(OUTPUT_RAW.glob("*.txt"))
-        + list(OUTPUT_RESULTS.glob("*.txt"))
+        list(OUTPUT_RAW.glob("*.md"))
+        + list(OUTPUT_RAW.glob("*.txt"))   # 相容舊檔
+        + list(OUTPUT_RESULTS.glob("*.md"))
+        + list(OUTPUT_RESULTS.glob("*.txt"))  # 相容舊檔
         + list(OUTPUT_EXCEL.glob("*.xlsx"))
     )
     all_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)

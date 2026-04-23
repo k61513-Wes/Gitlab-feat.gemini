@@ -10,8 +10,8 @@
 | 項目 | 說明 |
 |------|------|
 | **專案名稱** | GitLab Issue 整理工具 |
-| **目前版本** | v1.3.4 |
-| **技術棧** | Python 3 / Flask / Selenium / Gemini CLI |
+| **目前版本** | v1.4.0 |
+| **技術棧** | Python 3 / Flask / Selenium / **Google Gemini SDK** |
 | **主資料夾** | `Gitlab feat.gemini/`（唯一工作目錄） |
 | **Git 遠端** | https://github.com/k61513-Wes/Gitlab-feat.gemini.git |
 
@@ -61,7 +61,7 @@ Gitlab feat.gemini/
 ├── index.html               # 前端框架
 ├── requirements.txt
 ├── 啟動工具.bat
-├── modules/                 # 後端模組（config, gemini_cli, scraper, excel_utils, routes）
+├── modules/                 # 後端模組（config, llm_client, scraper, excel_utils, routes）
 ├── static/                  # 前端靜態資源 (style.css, app.js, ui.js)
 ├── outputs/                 # ⛔ 不進版控
 │   ├── raw/
@@ -154,8 +154,8 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 
 | 端點 | 方法 | 說明 |
 |------|------|------|
-| `/api/health` | GET | 健康檢查（CLI 可用性、執行環境、模型選項） |
-| `/api/probe_models` | POST | 驗證指定模型是否可由 CLI 受控呼叫 |
+| `/api/health` | GET | 健康檢查（SDK 狀態、執行環境、模型選項） |
+| `/api/probe_models` | POST | 驗證指定模型是否可由 SDK 成功呼叫 |
 | `/api/scrape_api` | POST | GitLab API 爬取（優先） |
 | `/api/scrape` | POST | Selenium 爬取（備用） |
 | `/api/resolve_filter_url` | POST | 解析篩選 URL 為 Issue 清單 |
@@ -194,7 +194,7 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 
 | 變數 | 預設值 | 說明 |
 |------|--------|------|
-| `GEMINI_CLI_PATH` | `gemini` | Gemini CLI 執行檔路徑 |
+| `GEMINI_API_KEY` | `無` | Gemini API Key（優先讀取 .env 或前端傳入） |
 | `GEMINI_TIMEOUT` | `300` | LLM 執行逾時（秒） |
 | `GEMINI_PROBE_TIMEOUT` | `12` | `/api/probe_models` 預設探針逾時（秒） |
 | `LLM_MODEL_PRIMARY` | `gemini-2.5-pro` | 模型選項 1 |
@@ -210,14 +210,12 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 
 ## 十、Gemini 模型配置
 
-| 項目 | 值 |
-|------|-----|
-| **當前策略** | UI 單選模型，送出後不自動 fallback |
-| **模型選項來源** | `LLM_MODEL_PRIMARY` / `LLM_MODEL_FALLBACK_1` / `LLM_MODEL_FALLBACK_2`，由 `/api/health` 回傳 `model_chain` |
+| **當前策略** | UI 單選模型優先，送出後支援後端 `.env` 憑證回退 |
+| **模型選項來源** | `LLM_MODEL_PRIMARY` / `LLM_MODEL_FALLBACK_1` / `LLM_MODEL_FALLBACK_2` |
 | **預設模型 ID** | `gemini-2.5-pro` / `gemma-4-31b-it` / `gemma-4-26b-a4b-it` |
 | **Flash 模型** | 不允許 |
-| **CLI 安裝** | `npm install -g @google/gemini-cli` |
-| **Windows 路徑** | `C:\Users\wes1_chen\AppData\Roaming\npm\gemini.cmd` |
+| **SDK 整合** | `google-genai` Python SDK |
+| **本地設定** | 支援 `.env` 檔案載入憑證 |
 
 > 注意：Gemma 4 選項目前僅代表可由 UI 選取；正式可用性仍應以 `/api/probe_models` 或直接 CLI 實測結果為準。
 
@@ -225,8 +223,8 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 
 ## 十一、文件更新歷史
 
-| 日期 | 版本 | 說明 |
-|------|------|------|
+| 2026-04-22 | v1.4.0 | **issuearrange 頁全面改版**：可折疊側邊欄（浮動按鈕 + localStorage 狀態）；字體控制改為連續 +/- 模式；Step 3 改為可拖曳雙欄預覽；佇列卡片指示器重構；Prompt 看板與歷史存檔改為折疊面板；支援擷取 `/work_items/` URL；版本號補齊至 v1.4.0 |
+| 2026-04-21 | v1.4.0 | **SDK 整合**：以 `google-genai` SDK 取代 Gemini CLI；新增 `.env` 支援設定預設 Token/Key；前端連線設定面板新增 Gemini API Key 欄位 |
 | 2026-04-20 | v1.3.4 | docs | 新增 `user_flow.md`；重寫 `runtime-overview.md`；補充 PRD 連線設定雙入口、Dashboard 儀表板互動細節、後端模組一覽表 |
 | 2026-04-20 | v1.3.4 | ui | `dashboard.html` | 篩選列表增加「顯示更多」分頁功能；修正 PES::Tech 圖示；統一趨勢圖標題字體 |
 | 2026-04-20 | v1.3.3 | ui | `dashboard.html`, `static/style.css` | 統一 Dashboard 篩選面板與主表格容器樣式，實現完全一致的滿版體驗 |

@@ -2,6 +2,33 @@
 
 ---
 
+## v1.4.0 — SDK 整合、Issue 整理頁全面改版
+**更新日期：2026-04-22**
+
+### 核心功能更新
+- **全面整合 SDK**：捨棄外部 Gemini CLI 依賴，改用官方 `google-genai` SDK，提升執行效率與穩定性。
+- **本地設定支援**：新增 `.env` 檔案載入功能，支援 `GEMINI_API_KEY`、`GITLAB_PRIVATE_TOKEN`、`GITLAB_PROJECT_ID` 預設配置。
+- **認證回推機制**：實作「UI 輸入優先 > 環境變數回退」邏輯，簡化重複輸入流程。
+
+### Issue 整理頁（issuearrange.html）全面改版
+- **可折疊側邊欄**：新增浮動收折按鈕（`‹ / ›`），狀態持久化於 `localStorage`，重新整頁後自動恢復。
+- **連續字體調整**：Header 字體控制由 S/M/L/XL 四段式改為 - / px 顯示 / + 連續調整模式，精準控制至 px 級別（10px~24px），相容舊版偏好。
+- **可拖曳雙欄結果預覽**：Step 3 結果區改為左（Scrape 原始）/ 右（LLM 結果）可拖曳雙欄，設有最小寬限制，支援滑鼠拖曳分隔線自由分配比例。
+- **Prompt 看板折疊**：Step 2 中的 Prompt 設定面板改為可折疊區塊（預設折疊），不再佔用固定空間。
+- **歷史存檔折疊**：Step 3 中的歷史存檔列表改為可折疊面板，點擊才展開，展開時自動觸發載入。
+- **佇列卡片指示器重構**：佇列項目狀態視覺從 `qi-model-pill` 改為 `qi-indicator`（彩色點 + 文字），更直覺地表達 waiting / running / done / error / skipped 五種狀態。
+- **長標題顯示優化**：Queue 卡片標題改為最多 2 行截斷（`-webkit-line-clamp: 2`），解決長 Issue 標題溢出問題。
+
+### UI 與體驗優化（共通）
+- **連線面板增強**：新增 Gemini API Key 輸入框，並將「檢查 CLI」更新為「檢查系統與模型」。
+- **狀態持久化**：Gemini API Key 會暫存於 `sessionStorage` 供跨頁面使用，刷新後自動回填輸入框。
+
+### 系統基礎
+- **新增依賴**：`google-genai` 與 `python-dotenv`。
+- **模組重構**：移除 `modules/gemini_cli.py`，新增 `modules/llm_client.py` 作為 SDK 統一入口。
+- **增強路由解析**：修改 `excel.py` 與 `scrape.py` 內擷取 Issue IID 的正規表達式設計，除了 `/issues/` 外，也新增對 `/work_items/` 路徑的支援，並提升對尾隨參數或 hash 的寬容度。
+
+
 ## v1.3.4 — Dashboard 功能體驗細緻化
 **更新日期：2026-04-20**
 

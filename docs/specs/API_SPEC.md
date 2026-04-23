@@ -1,7 +1,7 @@
 # API 規格書 — GitLab Issue 整理工具
 
-**對應版本：v1.2.7**
-**最後更新：2026-04-19**
+**對應版本：v1.4.0**
+**最後更新：2026-04-21**
 
 ---
 
@@ -21,8 +21,9 @@
 - `POST` 端點使用 `application/json`
 
 ### 2.3 認證
-- 需存取 GitLab API 的端點，透過 request body 傳入 `token`
-- token 僅用於當次請求，不得寫入 log（詳見 `docs/security/SECURITY.md`）
+- 需存取 GitLab API 的端點，透過 request body 傳入 `token` 或由後端 `.env` 回退讀取
+- 需使用 Gemini LLM 的端點，透過 request body 傳入 `gemini_api_key` 或由後端 `.env` 回退讀取
+- 所有敏感資訊僅用於當次請求，不得寫入 log（詳見 `docs/security/SECURITY.md`）
 
 ### 2.4 GitLab API 連線
 - 後端呼叫 GitLab REST API 時會忽略 `HTTP_PROXY` / `HTTPS_PROXY` 等環境代理設定，避免內網 GitLab 位址被導向本機或外部代理。
@@ -81,7 +82,8 @@
       "model_id": "gemini-2.5-pro",
       "configured": true,
       "allowed": true,
-      "reason": "ok"
+      "reason": "ok",
+      "sdk": "google-genai"
     },
     {
       "order": 2,
@@ -118,7 +120,8 @@ Request：
 ```json
 {
   "models": ["gemini-2.5-pro", "gemma-4-31b-it", "gemma-4-26b-a4b-it"],
-  "timeout": 8
+  "timeout": 8,
+  "gemini_api_key": "AIza..."
 }
 ```
 
@@ -151,7 +154,7 @@ Request：
 {
   "url": "https://gitlab.com/group/project/-/issues/123",
   "project_id": 456,
-  "token": "glpat-xxxxx"
+  "private_token": "glpat-xxxxx"
 }
 ```
 
@@ -180,7 +183,7 @@ Request：
 {
   "filter_url": "https://gitlab.com/group/project/-/issues?label_name[]=Priority::High",
   "project_id": 456,
-  "token": "glpat-xxxxx"
+  "private_token": "glpat-xxxxx"
 }
 ```
 
@@ -210,7 +213,8 @@ Request：
   "url": "https://.../-/issues/123",
   "timeout": 300,
   "model_name": "gemini-2.5-pro",
-  "model_label": "Gemini 2.5 Pro"
+  "model_label": "Gemini 2.5 Pro",
+  "gemini_api_key": "AIza..."
 }
 ```
 
@@ -232,8 +236,9 @@ Request：
 
 ```json
 {
-  "result_text": "整理後文本",
-  "format_prompt": "轉成 JSON 格式"
+  "processed_text": "整理後文本",
+  "export_prompt": "轉成 JSON 格式",
+  "gemini_api_key": "AIza..."
 }
 ```
 

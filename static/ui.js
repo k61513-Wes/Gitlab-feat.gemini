@@ -1,34 +1,38 @@
-// ── UI 控制模組 ─────────────────────────────────────────────────────────
-
-const FONT_SIZE_MAP = {
-  S: { base: 12, result: 16, status: 12, tag: 11 },
-  M: { base: 14, result: 16, status: 12, tag: 11 },
-  L: { base: 16, result: 18, status: 13, tag: 12 },
-  XL: { base: 18, result: 20, status: 14, tag: 12 },
-};
+// ── 字體大小：連續 +/- 調整模式 ──
+const FONT_SIZE_MIN = 10;
+const FONT_SIZE_MAX = 24;
 
 function id(x) { return document.getElementById(x); }
 
-function setFontSize(size) {
-  const normalized = FONT_SIZE_MAP[size] ? size : "M";
-  applyFontSize(normalized);
-  localStorage.setItem("gitlab_ui_font_size", normalized);
+function getCurrentFontSize() {
+  return parseInt(localStorage.getItem("gitlab_ui_font_px") || "14");
 }
 
-function applyFontSize(size) {
-  const cfg = FONT_SIZE_MAP[size] || FONT_SIZE_MAP.M;
+function adjustFontSize(delta) {
+  const current = getCurrentFontSize();
+  const next = Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, current + delta));
+  applyFontSizePx(next);
+  localStorage.setItem("gitlab_ui_font_px", String(next));
+}
+
+function applyFontSizePx(px) {
   const root = document.documentElement;
-  root.style.setProperty("--font-size-base", `${cfg.base}px`);
-  root.style.setProperty("--font-size-result", `${cfg.result}px`);
-  root.style.setProperty("--font-size-status", `${cfg.status}px`);
-  root.style.setProperty("--font-size-tag", `${cfg.tag}px`);
-  if (window.S) window.S.fontSize = size;
-  
-  document.querySelectorAll("[data-font-size]").forEach(btn => {
-    const active = btn.dataset.fontSize === size;
-    btn.classList.toggle("active", active);
-    btn.setAttribute("aria-pressed", active ? "true" : "false");
-  });
+  root.style.setProperty("--font-size-base", `${px}px`);
+  root.style.setProperty("--font-size-result", `${px + 2}px`);
+  root.style.setProperty("--font-size-status", `${Math.max(10, px - 2)}px`);
+  root.style.setProperty("--font-size-tag",    `${Math.max(10, px - 3)}px`);
+  // 更新顯示
+  const disp = id("font-size-display");
+  if (disp) disp.textContent = `${px}px`;
+  if (window.S) window.S.fontSize = String(px);
+}
+
+// 相容舊檔等級化介面
+function setFontSize(size) {
+  const legacyMap = { S: 12, M: 14, L: 16, XL: 18 };
+  const px = legacyMap[size] || 14;
+  applyFontSizePx(px);
+  localStorage.setItem("gitlab_ui_font_px", String(px));
 }
 
 function setTheme(theme) {
@@ -221,7 +225,16 @@ function copyEl(elId) {
 // init
 document.addEventListener("DOMContentLoaded", () => {
     setTheme(localStorage.getItem("gitlab_ui_theme") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
-    applyFontSize(localStorage.getItem("gitlab_ui_font_size") || "M");
+    // 儲存的是 px 就用 px，舊版 S/M/L/XL 字監自動轉換
+    const savedPx  = localStorage.getItem("gitlab_ui_font_px");
+    const savedSz  = localStorage.getItem("gitlab_ui_font_size");
+    if (savedPx) {
+        applyFontSizePx(parseInt(savedPx));
+    } else if (savedSz) {
+        setFontSize(savedSz);
+    } else {
+        applyFontSizePx(14);
+    }
     initSectionObserver();
 
     // ── 無論在哪個頁面，都先把 Token / Project ID 恢復到 S ──
@@ -229,10 +242,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // 但仍需要 S.token / S.projectId，否則 API 請求不帶認證 header。
     const savedToken = sessionStorage.getItem("gitlab_token");
     const savedPid   = localStorage.getItem("gitlab_project_id");
+    const savedGeminiKey = sessionStorage.getItem("gemini_api_key");
 
     if (window.S) {
         if (savedToken) S.token     = savedToken;
         if (savedPid)   S.projectId = savedPid;
+        if (savedGeminiKey) S.geminiKey = savedGeminiKey;
     }
 
     // 如果頁面上有 login 表單元素，也一并填入（login.html / issuearrange 的 step-config 區塊）
@@ -245,5 +260,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (savedToken) {
         const tokEl = id("cfg-token");
         if (tokEl) tokEl.value = savedToken;
+    }
+    if (savedGeminiKey) {
+        const gmEl = id("cfg-gemini-key");
+        if (gmEl) gmEl.value = savedGeminiKey;
     }
 });
