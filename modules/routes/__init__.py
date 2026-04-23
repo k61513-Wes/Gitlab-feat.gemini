@@ -32,8 +32,3 @@ def register_all_routes(app: Flask):
     @app.route("/issuearrange")
     def issue_arrange():
         return send_from_directory(".", "issuearrange.html")
-
-    # 相容舊網址
-    @app.route("/index.html")
-    def index_html():
-        return send_from_directory(".", "dashboard.html")

@@ -36,7 +36,7 @@
 
 ## 三、開發天條（不可違反）
 
-1. **版本號統一管理**：`app.py` 的 `APP_VERSION`、`index.html` 的 `<title>` 與頁頭 `<h1>`，以及所有文件的版本號，必須在同一次提交中保持一致。
+1. **版本號統一管理**：`app.py` 的 `APP_VERSION`、`login.html` 等頁面的標題與頁頭 `<h1>`，以及所有文件的版本號，必須在同一次提交中保持一致。
 2. **文件四件套必更新**：每次 git commit 前，`docs/product/PRD.md`、`RELEASE_NOTES.md`、`CHANGELOG.md`、`AGENTS.md`（如有規範異動）都必須同步填寫。
 3. **專項規格必同步**：若改動涉及 API，必須同步更新對應專項規格文件。
 4. **outputs/ 不進版控**：`outputs/` 為程式執行產出，已加入 `.gitignore`，嚴禁手動 `git add outputs/`。
@@ -54,7 +54,9 @@
 ```text
 Gitlab feat.gemini/
 ├── app.py                   # 精簡後的主入口
-├── index.html               # 前端框架
+├── login.html               # 登入設定頁
+├── dashboard.html           # 儀表板頁
+├── issuearrange.html        # Issue 整理工作台
 ├── requirements.txt
 ├── 啟動工具.bat
 ├── modules/                 # 後端模組（config, llm_client, scraper, excel_utils, routes）
@@ -105,7 +107,7 @@ Gitlab feat.gemini/
 1. 讀 docs/product/PRD.md 確認功能範圍與 API 定義
 2. 更新 docs/product/PRD.md（新增功能描述與端點）
 3. 撰寫程式碼
-4. 更新版本號（app.py APP_VERSION、index.html 標題）
+4. 更新版本號（app.py APP_VERSION、login.html 等標題）
 5. 更新 RELEASE_NOTES.md（新版本章節）
 6. 更新 CHANGELOG.md（詳細變動）
 7. git commit
