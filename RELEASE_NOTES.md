@@ -2,6 +2,20 @@
 
 ---
 
+## v1.5.0 — Redmine 整合基礎（Backend Only）
+**更新日期：2026-04-28**
+
+### 核心功能更新
+- **新增 Redmine 整合基礎**：引入 `RedmineClient` 模組，支援與 ASUS Redmine (http://redmine.corpnet.asus) 的 REST API 通訊。
+- **Redmine API 端點**：新增 `/api/redmine/health`、`/api/redmine/issue`、`/api/redmine/issues` 等後端路由，為多來源 Issue 整合鋪路。
+- **統一轉接器預留**：建立 `modules/issue_adapter.py` 空檔，規劃未來將 GitLab 與 Redmine 資料結構化為統一 Markdown 格式。
+
+### 系統改進
+- **版本升級**：版本正式邁向 v1.5.0。
+- **配置擴充**：`config.py` 新增 Redmine 實例 URL、API Token、逾時與專案預設值設定，支援 `.env` 驅動。
+- **規劃文件完備**：在 `docs/redmine/` 目錄下建立完整紅米整合實作指南、分析報告與 Checklists。
+
+
 ## v1.4.0 — SDK 整合、Issue 整理頁全面改版
 **更新日期：2026-04-22**
 

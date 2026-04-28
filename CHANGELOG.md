@@ -4,6 +4,22 @@
 
 ---
 
+## v1.5.0
+
+### 2026-04-28
+
+| # | 日期 | 版本 | 類型 | 影響檔案 | 說明 |
+|---|------|------|------|----------|------|
+| 143 | 2026-04-28 | v1.5.0 | feat | `modules/redmine_client.py` | 建立 Redmine REST API 客戶端，支援連線、單筆 Issue 與列表抓取 |
+| 144 | 2026-04-28 | v1.5.0 | feat | `modules/routes/redmine.py` | 新增 Redmine API 路由端點 (/api/redmine/*) |
+| 145 | 2026-04-28 | v1.5.0 | refactor | `modules/routes/__init__.py` | 註冊 `redmine_bp` 藍圖 |
+| 146 | 2026-04-28 | v1.5.0 | config | `modules/config.py` | 新增 Redmine 常數設定與狀態映射，升級版本號至 v1.5.0 |
+| 147 | 2026-04-28 | v1.5.0 | feat | `modules/issue_adapter.py` | 建立統一格式轉換器空檔 |
+| 148 | 2026-04-28 | v1.5.0 | docs | `docs/redmine/` | 建立完整的 Redmine 整合規劃、實作指引與 Checklists 文件體系 |
+| 149 | 2026-04-28 | v1.5.0 | docs | `docs/product/PRD.md`, `RELEASE_NOTES.md`, `AGENTS.md` | 同步更新版本號與整合說明 |
+
+---
+
 ## v1.4.0
 
 ### 2026-04-22

@@ -5,8 +5,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-# 升級至 v1.4.0: SDK 與本地 .env 載入支援
-APP_VERSION = "v1.4.0"
+# 升級至 v1.5.0: 新增 Redmine 整合基礎
+APP_VERSION = "v1.5.0"
 
 # ─── 日誌設定 ────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -74,6 +74,20 @@ PROCESS_SYSTEM_PROMPT = """\
 
 注意：以上六個 ## 標題必須全部出現，順序不變，內容不足時填「無」或「尚未確認」。\
 """
+
+# ─── Redmine 連線設定 ─────────────────────────────────────────────────────
+REDMINE_URL             = os.environ.get("REDMINE_URL", "http://redmine.corpnet.asus").strip().rstrip("/")
+REDMINE_API_TOKEN       = os.environ.get("REDMINE_API_TOKEN", "").strip()
+REDMINE_TIMEOUT         = int(os.environ.get("REDMINE_TIMEOUT", "30"))
+REDMINE_DEFAULT_PROJECT = os.environ.get("REDMINE_DEFAULT_PROJECT", "aisphm").strip()
+
+REDMINE_STATUS_MAP = {
+    1: "New", 2: "In Progress", 3: "Resolved",
+    4: "Feedback", 5: "Closed", 6: "Rejected",
+}
+REDMINE_PRIORITY_MAP = {
+    1: "Low", 2: "Normal", 3: "High", 4: "Urgent", 5: "Immediate",
+}
 
 MODEL_CHAIN_SPECS = [
     {"order": 1, "label": "Gemini 2.5 Pro", "model_id": LLM_MODEL_PRIMARY},

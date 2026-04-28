@@ -8,6 +8,7 @@ def register_all_routes(app: Flask):
     from modules.routes.prompts import prompts_bp
     from modules.routes.health import health_bp
     from modules.routes.dashboard import dashboard_bp
+    from modules.routes.redmine import redmine_bp
 
     app.register_blueprint(scrape_bp)
     app.register_blueprint(process_bp)
@@ -16,6 +17,7 @@ def register_all_routes(app: Flask):
     app.register_blueprint(prompts_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(redmine_bp)
 
     @app.route("/")
     def index():

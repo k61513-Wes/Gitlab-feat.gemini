@@ -1,7 +1,7 @@
 # API 規格書 — GitLab Issue 整理工具
 
-**對應版本：v1.4.0**
-**最後更新：2026-04-23**
+**對應版本：v1.5.0**
+**最後更新：2026-04-28**
 
 ---
 
@@ -548,7 +548,70 @@ Response：
 
 ---
 
-## 5. 錯誤碼建議清單
+## 5. Redmine API 端點
+
+### 5.1 `GET /api/redmine/health`
+- 用途：Redmine 連線健康檢查（API Token 與 Project 存取驗證）
+
+Response：
+
+```json
+{
+  "ok": true,
+  "redmine_url": "http://redmine.corpnet.asus",
+  "project_id": "aisphm",
+  "project_name": "ASUS Intelligent Smart Sensor PHM"
+}
+```
+
+### 5.2 `POST /api/redmine/issue`
+- 用途：取得 Redmine 單筆 Issue
+
+Request Body：
+
+```json
+{
+  "issue_id": 17483,
+  "redmine_url": "optional",
+  "api_token": "optional"
+}
+```
+
+Response：
+
+```json
+{
+  "issue": {
+    "id": 17483,
+    "title": "Title",
+    "description": "...",
+    "status": "New",
+    "priority": "Normal",
+    "assigned_to": "User",
+    "author": "Author",
+    "created_on": "2026-04-27T10:00:00Z",
+    "url": "..."
+  }
+}
+```
+
+### 5.3 `POST /api/redmine/issues`
+- 用途：取得 Redmine Issue 列表（支援篩選與分頁）
+
+Request Body：
+
+```json
+{
+  "project_id": "aisphm",
+  "filters": { "status_id": "open" },
+  "limit": 25,
+  "offset": 0
+}
+```
+
+---
+
+## 6. 錯誤碼建議清單
 
 | Code | 說明 |
 |------|------|
