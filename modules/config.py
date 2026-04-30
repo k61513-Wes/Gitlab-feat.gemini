@@ -5,8 +5,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-# 升級至 v1.5.0: 新增 Redmine 整合基礎
-APP_VERSION = "v1.5.0"
+# 升級至 v1.5.1: 介面重構
+APP_VERSION = "v1.5.1"
 
 # ─── 日誌設定 ────────────────────────────────────────────────────────────
 logging.basicConfig(

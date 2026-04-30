@@ -1,6 +1,6 @@
 # PRD — GitLab Issue 整理工具
 
-**目前版本：v1.5.0　　最後更新：2026-04-28**
+**目前版本：v1.5.1　　最後更新：2026-04-30**
 
 > 架構詳細圖示請見 `docs/architecture/runtime-overview.md`，User Flow 請見 `docs/product/user_flow.md`。
 
@@ -346,6 +346,7 @@ Header 提供字體大小連續調整（`−1 / px顯示 / +1`）與亮色 / 暗
 
 | 版本 | 日期 | 說明 |
 |------|------|------|
+| v1.5.1 | 2026-04-30 | **UI 煥然一新**：根據 Apple Design System 重新設計介面。採用極簡畫布、Action Blue (#0066cc) 點綴與 Apple 式圓角（18px 卡片、膠囊按鈕）。導入 SF Pro 字體質感與 scale(0.95) 點擊回饋，同時保留業務標籤顏色。 |
 | v1.5.0 | 2026-04-28 | **Redmine 整合基礎（Backend）**：新增 `RedmineClient` 與 `/api/redmine/*` 路由端點；新增 `modules/issue_adapter.py` 空檔；建立紅米整合規劃文件體系。 |
 | v1.4.0 | 2026-04-22 | **SDK 整合 + Issue 整理頁全面改版**：以 `google-genai` Python SDK 取代 Gemini CLI；新增 `.env` 本地設定支援；連線設定面板新增 Gemini API Key 輸入；`issuearrange.html` 重構為可折疊側邊欄 + 雙欄拖曳預覽 + 字體連續調整 + 佇列指示器重構 |
 | v1.3.4 | 2026-04-20 | 篩選列表增加「顯示更多」分頁功能（每次 50 筆）；修正 PES::Tech 圖示（🔶→🟠）；統一趨勢圖標題字體 |

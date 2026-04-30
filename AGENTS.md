@@ -10,7 +10,7 @@
 | 項目 | 說明 |
 |------|------|
 | **專案名稱** | GitLab Issue 整理工具 |
-| **目前版本** | v1.5.0 |
+| **目前版本** | v1.5.1 |
 | **技術棧** | Python 3 / Flask / Selenium / **Google Gemini SDK** |
 | **主資料夾** | `Gitlab feat.gemini/`（唯一工作目錄） |
 | **Git 遠端** | https://github.com/k61513-Wes/Gitlab-feat.gemini.git |
@@ -215,6 +215,7 @@ docs: 更新 PRD API 端點說明 [v1.0.0]
 
 ## 十一、文件更新歷史
 
+| 2026-04-30 | v1.5.1 | **UI 煥然一新**：導入 Apple Design System，重構全站色彩、圓角、排版與動效回饋。 |
 | 2026-04-28 | v1.5.0 | **Redmine 整合基礎**：新增 `RedmineClient` 與 `/api/redmine/*` 端點；新增 `modules/issue_adapter.py` 空檔；建立紅米整合規劃文件，升級版本至 v1.5.0 |
 | 2026-04-22 | v1.4.0 | **issuearrange 頁全面改版**：可折疊側邊欄（浮動按鈕 + localStorage 狀態）；字體控制改為連續 +/- 模式；Step 3 改為可拖曳雙欄預覽；佇列卡片指示器重構；Prompt 看板與歷史存檔改為折疊面板；支援擷取 `/work_items/` URL；版本號補齊至 v1.4.0 |
 | 2026-04-21 | v1.4.0 | **SDK 整合**：以 `google-genai` SDK 取代 Gemini CLI；新增 `.env` 支援設定預設 Token/Key；前端連線設定面板新增 Gemini API Key 欄位 |
